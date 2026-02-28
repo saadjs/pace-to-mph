@@ -75,6 +75,29 @@ final class ConverterViewModel {
         direction.label
     }
 
+    struct ReferenceItem {
+        let pace: String
+        let speed: String
+    }
+
+    /// Common pace/speed benchmarks for the current unit
+    var referenceItems: [ReferenceItem] {
+        // Paces from 5:00 to 12:00 per unit in 30-second steps
+        let paces: [(min: Int, sec: Int)] = [
+            (5, 0), (5, 30), (6, 0), (6, 30), (7, 0), (7, 30),
+            (8, 0), (8, 30), (9, 0), (9, 30), (10, 0), (10, 30),
+            (11, 0), (11, 30), (12, 0)
+        ]
+        return paces.map { p in
+            let paceMinutes = Double(p.min) + Double(p.sec) / 60.0
+            let speed = ConversionEngine.paceToSpeed(paceMinutes)
+            return ReferenceItem(
+                pace: "\(p.min):\(String(format: "%02d", p.sec))",
+                speed: ConversionEngine.formatSpeed(speed)
+            )
+        }
+    }
+
     // MARK: - Actions
 
     func handleInput(_ value: String) {

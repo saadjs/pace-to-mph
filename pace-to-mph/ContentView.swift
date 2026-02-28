@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var viewModel = ConverterViewModel()
+    @State private var showCopied = false
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -21,7 +22,11 @@ struct ContentView: View {
                     .padding(.horizontal, 24)
                     .padding(.top, 16)
 
-                Spacer()
+                // Reference table
+                referenceTable
+                    .padding(.top, 12)
+
+                Spacer(minLength: 8)
 
                 // Bottom controls
                 controlPanel
@@ -74,10 +79,13 @@ struct ContentView: View {
                     .textFieldStyle(.plain)
                     .focused($isInputFocused)
                     .minimumScaleFactor(0.5)
+                    .accessibilityLabel("Enter \(viewModel.direction == .paceToSpeed ? "pace" : "speed")")
+                    .accessibilityHint(viewModel.helperText)
 
                     Text(viewModel.inputSuffix)
                         .font(.system(size: 24, weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                 }
 
                 // Accent underline
@@ -85,25 +93,45 @@ struct ContentView: View {
                     .fill(Color.green)
                     .frame(height: 2)
                     .frame(maxWidth: 200)
+                    .accessibilityHidden(true)
             }
 
             // Divider
             Divider()
 
-            // Result
-            VStack(spacing: 6) {
-                Text(viewModel.result.isEmpty ? "–" : viewModel.result)
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(viewModel.result.isEmpty ? .tertiary : .primary)
-                    .contentTransition(.numericText())
-                    .animation(.snappy(duration: 0.2), value: viewModel.result)
+            // Result (tappable to copy)
+            Button {
+                copyResult()
+            } label: {
+                VStack(spacing: 6) {
+                    ZStack {
+                        Text(viewModel.result.isEmpty ? "–" : viewModel.result)
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(viewModel.result.isEmpty ? .tertiary : .primary)
+                            .contentTransition(.numericText())
+                            .animation(.snappy(duration: 0.2), value: viewModel.result)
+                            .opacity(showCopied ? 0.3 : 1)
 
-                Text(viewModel.resultSuffix)
-                    .font(.system(size: 18, weight: .semibold))
-                    .tracking(2)
-                    .foregroundStyle(.secondary)
+                        if showCopied {
+                            Label("Copied", systemImage: "checkmark.circle.fill")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(.green)
+                                .transition(.scale.combined(with: .opacity))
+                        }
+                    }
+
+                    Text(viewModel.resultSuffix)
+                        .font(.system(size: 18, weight: .semibold))
+                        .tracking(2)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
+                .accessibilityHint(viewModel.result.isEmpty ? "" : "Tap to copy")
             }
+            .buttonStyle(.plain)
+            .disabled(viewModel.result.isEmpty)
         }
         .padding(24)
         .background(
@@ -114,6 +142,35 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(.quaternary, lineWidth: 1)
         )
+    }
+
+    // MARK: - Reference Table
+
+    private var referenceTable: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(viewModel.referenceItems, id: \.pace) { item in
+                    VStack(spacing: 4) {
+                        Text(item.pace)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                        Text(item.speed)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color(.secondarySystemGroupedBackground))
+                    )
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(item.pace) \(viewModel.unit.paceLabel) equals \(item.speed) \(viewModel.unit.speedLabel)")
+                }
+            }
+            .padding(.horizontal, 24)
+        }
     }
 
     // MARK: - Control Panel
@@ -160,6 +217,7 @@ struct ContentView: View {
                         isInputFocused = false
                         viewModel.switchDirection(to: dir)
                     }
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 } label: {
                     Text(dir.label)
                         .font(.system(size: 15, weight: .semibold))
@@ -180,6 +238,8 @@ struct ContentView: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(dir.label)
+                .accessibilityAddTraits(viewModel.direction == dir ? .isSelected : [])
             }
         }
         .padding(6)
@@ -187,6 +247,8 @@ struct ContentView: View {
             Capsule()
                 .fill(Color(.tertiarySystemGroupedBackground))
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Conversion direction")
     }
 
     private var unitPicker: some View {
@@ -196,6 +258,7 @@ struct ContentView: View {
                     withAnimation(.snappy(duration: 0.25)) {
                         viewModel.switchUnit(to: u)
                     }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
                     Text(u.label)
                         .font(.system(size: 14, weight: .bold))
@@ -212,6 +275,26 @@ struct ContentView: View {
                         .foregroundStyle(viewModel.unit == u ? .green : .secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(u.label)
+                .accessibilityAddTraits(viewModel.unit == u ? .isSelected : [])
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Speed unit")
+    }
+
+    // MARK: - Actions
+
+    private func copyResult() {
+        guard !viewModel.result.isEmpty else { return }
+        UIPasteboard.general.string = "\(viewModel.result) \(viewModel.resultSuffix)"
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(.snappy(duration: 0.2)) {
+            showCopied = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation(.snappy(duration: 0.2)) {
+                showCopied = false
             }
         }
     }
