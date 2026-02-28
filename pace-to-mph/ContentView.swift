@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var viewModel = ConverterViewModel()
-    @State private var showCopied = false
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -108,39 +107,22 @@ struct ContentView: View {
             // Divider
             Divider()
 
-            // Result (tappable to copy)
-            Button {
-                copyResult()
-            } label: {
-                VStack(spacing: 6) {
-                    ZStack {
-                        Text(viewModel.result.isEmpty ? "–" : viewModel.result)
-                            .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(viewModel.result.isEmpty ? .tertiary : .primary)
-                            .contentTransition(.numericText())
-                            .animation(.snappy(duration: 0.2), value: viewModel.result)
-                            .opacity(showCopied ? 0.3 : 1)
+            // Result
+            VStack(spacing: 6) {
+                Text(viewModel.result.isEmpty ? "–" : viewModel.result)
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(viewModel.result.isEmpty ? .tertiary : .primary)
+                    .contentTransition(.numericText())
+                    .animation(.snappy(duration: 0.2), value: viewModel.result)
 
-                        if showCopied {
-                            Label("Copied", systemImage: "checkmark.circle.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(.green)
-                                .transition(.scale.combined(with: .opacity))
-                        }
-                    }
-
-                    Text(viewModel.resultSuffix)
-                        .font(.system(size: 18, weight: .semibold))
-                        .tracking(2)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
-                .accessibilityHint(viewModel.result.isEmpty ? "" : "Tap to copy")
+                Text(viewModel.resultSuffix)
+                    .font(.system(size: 18, weight: .semibold))
+                    .tracking(2)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-            .disabled(viewModel.result.isEmpty)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
         }
         .padding(24)
         .background(
@@ -263,21 +245,6 @@ struct ContentView: View {
         .accessibilityLabel("Speed unit")
     }
 
-    // MARK: - Actions
-
-    private func copyResult() {
-        guard !viewModel.result.isEmpty else { return }
-        UIPasteboard.general.string = "\(viewModel.result) \(viewModel.resultSuffix)"
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        withAnimation(.snappy(duration: 0.2)) {
-            showCopied = true
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            withAnimation(.snappy(duration: 0.2)) {
-                showCopied = false
-            }
-        }
-    }
 }
 
 #Preview {
