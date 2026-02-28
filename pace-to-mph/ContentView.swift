@@ -6,35 +6,44 @@ struct ContentView: View {
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
-        ZStack {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
-                .onTapGesture { isInputFocused = false }
+        NavigationStack {
+            ZStack {
+                Color(.systemGroupedBackground)
+                    .ignoresSafeArea()
+                    .onTapGesture { isInputFocused = false }
 
-            VStack(spacing: 0) {
-                // Header
-                headerSection
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                VStack(spacing: 0) {
+                    // Header
+                    headerSection
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
 
-                // Conversion card
-                conversionCard
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                    // Conversion card
+                    conversionCard
+                        .padding(.horizontal, 24)
+                        .padding(.top, 16)
 
-                // Reference table
-                referenceTable
-                    .padding(.top, 12)
+                    Spacer()
 
-                Spacer(minLength: 8)
-
-                // Bottom controls
-                controlPanel
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 8)
+                    // Bottom controls
+                    controlPanel
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
+            }
+            .containerShape(RoundedRectangle(cornerRadius: 44, style: .continuous))
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        ReferenceView()
+                    } label: {
+                        Image(systemName: "table")
+                            .font(.system(size: 15, weight: .semibold))
+                    }
+                    .accessibilityLabel("Pace reference table")
+                }
             }
         }
-        .containerShape(RoundedRectangle(cornerRadius: 44, style: .continuous))
     }
 
     // MARK: - Header
@@ -142,35 +151,6 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .strokeBorder(.quaternary, lineWidth: 1)
         )
-    }
-
-    // MARK: - Reference Table
-
-    private var referenceTable: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(viewModel.referenceItems, id: \.pace) { item in
-                    VStack(spacing: 4) {
-                        Text(item.pace)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                        Text(item.speed)
-                            .font(.system(size: 12, weight: .medium, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                    )
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(item.pace) \(viewModel.unit.paceLabel) equals \(item.speed) \(viewModel.unit.speedLabel)")
-                }
-            }
-            .padding(.horizontal, 24)
-        }
     }
 
     // MARK: - Control Panel
