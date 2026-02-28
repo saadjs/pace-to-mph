@@ -1,0 +1,11 @@
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+
+# Build
+build/
+DerivedData/
+
+# OS
+.DS_Store
