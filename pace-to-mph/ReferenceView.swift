@@ -7,10 +7,12 @@ struct ReferenceView: View {
         let min: Int
         let sec: Int
         var id: Int { min * 60 + sec }
+        var paceMinutes: Double { Double(min) + Double(sec) / 60.0 }
+        var label: String { "\(min):\(String(format: "%02d", sec))" }
     }
 
-    // Paces from 5:00 to 12:00 in 30-second steps
-    private let paces: [PaceEntry] = {
+    // Round paces per mile: 5:00–12:00 in 30s steps
+    private let mphPaces: [PaceEntry] = {
         var result: [PaceEntry] = []
         for m in 5...12 {
             result.append(PaceEntry(min: m, sec: 0))
@@ -19,9 +21,22 @@ struct ReferenceView: View {
         return result
     }()
 
+    // Round paces per km: 3:00–8:00 in 30s steps
+    private let kphPaces: [PaceEntry] = {
+        var result: [PaceEntry] = []
+        for m in 3...8 {
+            result.append(PaceEntry(min: m, sec: 0))
+            if m < 8 { result.append(PaceEntry(min: m, sec: 30)) }
+        }
+        return result
+    }()
+
+    private var activePaces: [PaceEntry] {
+        selectedUnit == .mph ? mphPaces : kphPaces
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            // Unit tabs
             Picker("Unit", selection: $selectedUnit) {
                 ForEach(SpeedUnit.allCases, id: \.self) { unit in
                     Text(unit.speedLabel).tag(unit)
@@ -32,24 +47,11 @@ struct ReferenceView: View {
             .padding(.top, 8)
 
             List {
-                ForEach(paces) { pace in
-                    let paceMinutes = Double(pace.min) + Double(pace.sec) / 60.0
-                    let speed: Double = {
-                        let baseMph = ConversionEngine.paceToSpeed(paceMinutes)
-                        return selectedUnit == .mph
-                            ? baseMph
-                            : ConversionEngine.convertSpeedBetweenUnits(baseMph, from: .mph, to: .kph)
-                    }()
-                    let paceLabel: String = {
-                        if selectedUnit == .mph {
-                            return "\(pace.min):\(String(format: "%02d", pace.sec))"
-                        }
-                        let kmPace = ConversionEngine.convertPaceBetweenUnits(paceMinutes, from: .mph, to: .kph)
-                        return ConversionEngine.formatPace(kmPace) ?? "–"
-                    }()
+                ForEach(activePaces) { pace in
+                    let speed = ConversionEngine.paceToSpeed(pace.paceMinutes)
 
                     HStack {
-                        Text(paceLabel)
+                        Text(pace.label)
                             .font(.system(size: 20, weight: .bold, design: .rounded))
                             .monospacedDigit()
 
@@ -70,7 +72,7 @@ struct ReferenceView: View {
                     }
                     .padding(.vertical, 4)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(paceLabel) \(selectedUnit.paceLabel) equals \(ConversionEngine.formatSpeed(speed)) \(selectedUnit.speedLabel)")
+                    .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(ConversionEngine.formatSpeed(speed)) \(selectedUnit.speedLabel)")
                 }
             }
             .listStyle(.insetGrouped)
