@@ -3,12 +3,18 @@ import SwiftUI
 struct ReferenceView: View {
     @State private var selectedUnit: SpeedUnit = .mph
 
+    private struct PaceEntry: Identifiable {
+        let min: Int
+        let sec: Int
+        var id: Int { min * 60 + sec }
+    }
+
     // Paces from 5:00 to 12:00 in 30-second steps
-    private let paces: [(min: Int, sec: Int)] = {
-        var result: [(Int, Int)] = []
+    private let paces: [PaceEntry] = {
+        var result: [PaceEntry] = []
         for m in 5...12 {
-            result.append((m, 0))
-            if m < 12 { result.append((m, 30)) }
+            result.append(PaceEntry(min: m, sec: 0))
+            if m < 12 { result.append(PaceEntry(min: m, sec: 30)) }
         }
         return result
     }()
@@ -26,7 +32,7 @@ struct ReferenceView: View {
             .padding(.top, 8)
 
             List {
-                ForEach(paces, id: \.min) { pace in
+                ForEach(paces) { pace in
                     let paceMinutes = Double(pace.min) + Double(pace.sec) / 60.0
                     let speed: Double = {
                         let baseMph = ConversionEngine.paceToSpeed(paceMinutes)
