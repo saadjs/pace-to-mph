@@ -150,3 +150,65 @@ struct ConversionEngineTests {
         #expect(result == "10.5")
     }
 }
+
+struct ReviewRegressionTests {
+
+    @Test func iosTargetDoesNotHardDependOnWatchTarget() throws {
+        let project = try testFileContents(
+            "pace-to-mph.xcodeproj",
+            "project.pbxproj"
+        )
+
+        let appTargetBlock = try #require(
+            slice(
+                in: project,
+                from: "939A2E5B2F539927000B40F9 /* pace-to-mph */ = {",
+                to: "939A2E682F539928000B40F9 /* pace-to-mphTests */ = {"
+            )
+        )
+
+        #expect(!appTargetBlock.contains("C0FFEE150000000000000015 /* PBXTargetDependency */"))
+    }
+
+    @Test func favoriteButtonRemainsOutsideCombinedAccessibilityElement() throws {
+        let contentView = try testFileContents("pace-to-mph", "ContentView.swift")
+        let resultSection = try #require(
+            slice(
+                in: contentView,
+                from: "// Result",
+                to: ".sensoryFeedback(.impact(flexibility: .soft), trigger: viewModel.result)"
+            )
+        )
+
+        let combineIndex = try #require(
+            resultSection.range(of: ".accessibilityElement(children: .combine)")?.lowerBound
+        )
+        let favoriteIndex = try #require(
+            resultSection.range(of: "if !viewModel.result.isEmpty {")?.lowerBound
+        )
+
+        #expect(combineIndex < favoriteIndex)
+    }
+}
+
+private func testFileContents(_ pathComponents: String...) throws -> String {
+    let fileURL = repoRootURL().appending(path: pathComponents.joined(separator: "/"))
+    return try String(contentsOf: fileURL, encoding: .utf8)
+}
+
+private func repoRootURL() -> URL {
+    URL(filePath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+}
+
+private func slice(in source: String, from start: String, to end: String) -> String? {
+    guard
+        let startRange = source.range(of: start),
+        let endRange = source.range(of: end, range: startRange.lowerBound..<source.endIndex)
+    else {
+        return nil
+    }
+
+    return String(source[startRange.lowerBound..<endRange.lowerBound])
+}

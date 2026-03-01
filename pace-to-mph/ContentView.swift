@@ -152,17 +152,21 @@ struct ContentView: View {
 
             // Result
             VStack(spacing: 6) {
-                Text(viewModel.result.isEmpty ? "–" : viewModel.result)
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(viewModel.result.isEmpty ? .tertiary : .primary)
-                    .contentTransition(.numericText())
-                    .animation(.snappy(duration: 0.2), value: viewModel.result)
+                VStack(spacing: 6) {
+                    Text(viewModel.result.isEmpty ? "–" : viewModel.result)
+                        .font(.system(size: 48, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(viewModel.result.isEmpty ? .tertiary : .primary)
+                        .contentTransition(.numericText())
+                        .animation(.snappy(duration: 0.2), value: viewModel.result)
 
-                Text(viewModel.resultSuffix)
-                    .font(.system(size: 18, weight: .semibold))
-                    .tracking(2)
-                    .foregroundStyle(.secondary)
+                    Text(viewModel.resultSuffix)
+                        .font(.system(size: 18, weight: .semibold))
+                        .tracking(2)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
 
                 if !viewModel.result.isEmpty {
                     Button {
@@ -181,7 +185,7 @@ struct ContentView: View {
                             result: viewModel.result,
                             resultSuffix: viewModel.resultSuffix
                         )
-                    Image(systemName: isFav ? "star.fill" : "star")
+                        Image(systemName: isFav ? "star.fill" : "star")
                             .font(.system(size: 20))
                             .foregroundStyle(isFav ? .yellow : .secondary)
                     }
@@ -190,8 +194,6 @@ struct ContentView: View {
                     .accessibilityLabel("Toggle favorite")
                 }
             }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
             .sensoryFeedback(.impact(flexibility: .soft), trigger: viewModel.result)
         }
         .padding(24)
