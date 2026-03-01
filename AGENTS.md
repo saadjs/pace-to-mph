@@ -9,3 +9,8 @@ When committing, always use atomic commits format with Conventional Commits form
 Be extremely concise in commit messages, sacrifice grammar for sake of conciseness.
 
 Don't add co-authored by any AI tools in any commits. e.g. Claude, Copilot, ChatGPT, Gemini, etc.
+
+# After Review
+
+- When review has been completed, and there are changes to be made, add regression tests first reproducing the findings.
+- After adding regression tests, make the necessary code changes to fix the issues identified during the review process.
