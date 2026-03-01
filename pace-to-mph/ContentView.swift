@@ -9,7 +9,10 @@ struct ContentView: View {
             ZStack {
                 Color(.systemGroupedBackground)
                     .ignoresSafeArea()
-                    .onTapGesture { isInputFocused = false }
+                    .onTapGesture {
+                        isInputFocused = false
+                        viewModel.recordCurrentConversion()
+                    }
 
                 VStack(spacing: 0) {
                     // Header
@@ -32,14 +35,41 @@ struct ContentView: View {
             }
             .containerShape(RoundedRectangle(cornerRadius: 44, style: .continuous))
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
-                        ReferenceView()
+                        HistoryView(history: viewModel.history)
                     } label: {
-                        Image(systemName: "table")
+                        Image(systemName: "clock")
                             .font(.system(size: 15, weight: .semibold))
                     }
-                    .accessibilityLabel("Pace reference table")
+                    .accessibilityLabel("Conversion history")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    HStack(spacing: 16) {
+                        NavigationLink {
+                            RaceTimeView()
+                        } label: {
+                            Image(systemName: "flag.checkered")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .accessibilityLabel("Race finish time")
+
+                        NavigationLink {
+                            SplitCalculatorView()
+                        } label: {
+                            Image(systemName: "chart.bar")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .accessibilityLabel("Even splits calculator")
+
+                        NavigationLink {
+                            ReferenceView()
+                        } label: {
+                            Image(systemName: "table")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .accessibilityLabel("Pace reference table")
+                    }
                 }
             }
         }
@@ -86,6 +116,7 @@ struct ContentView: View {
                     .keyboardType(viewModel.direction == .paceToSpeed ? .numbersAndPunctuation : .decimalPad)
                     .textFieldStyle(.plain)
                     .focused($isInputFocused)
+                    .onSubmit { viewModel.recordCurrentConversion() }
                     .minimumScaleFactor(0.5)
                     .accessibilityLabel("Enter \(viewModel.direction == .paceToSpeed ? "pace" : "speed")")
                     .accessibilityHint(viewModel.helperText)
