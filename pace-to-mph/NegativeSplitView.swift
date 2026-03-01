@@ -231,8 +231,12 @@ struct NegativeSplitView: View {
                     .frame(width: 56, alignment: .trailing)
             }
 
+            let cumulativeSeconds: [Int] = splits.reduce(into: []) { result, split in
+                result.append((result.last ?? 0) + split.seconds)
+            }
+
             ForEach(Array(splits.enumerated()), id: \.offset) { index, split in
-                let cumulative = splits.prefix(index + 1).reduce(0) { $0 + $1.seconds }
+                let cumulative = cumulativeSeconds[index]
                 let paceMinutes = split.distance > 0 ? Double(split.seconds) / 60.0 / split.distance : 0
 
                 HStack {

@@ -175,19 +175,15 @@ struct ContentView: View {
                             )
                         }
                     } label: {
-                        Image(systemName: favoritesStore.isFavorited(
+                        let isFav = favoritesStore.isFavorited(
                             input: viewModel.inputText,
                             inputSuffix: viewModel.inputSuffix,
                             result: viewModel.result,
                             resultSuffix: viewModel.resultSuffix
-                        ) ? "star.fill" : "star")
+                        )
+                    Image(systemName: isFav ? "star.fill" : "star")
                             .font(.system(size: 20))
-                            .foregroundStyle(favoritesStore.isFavorited(
-                                input: viewModel.inputText,
-                                inputSuffix: viewModel.inputSuffix,
-                                result: viewModel.result,
-                                resultSuffix: viewModel.resultSuffix
-                            ) ? .yellow : .secondary)
+                            .foregroundStyle(isFav ? .yellow : .secondary)
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 8)
