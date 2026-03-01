@@ -79,33 +79,22 @@ nonisolated enum ConversionEngine {
 
     /// Format a speed value to 2 decimal places
     static func formatSpeed(_ value: Double) -> String {
-        String(format: "%.2f", value)
+        SharedConversionMath.formatSpeed(value)
     }
 
     /// Format minutes-per-unit as "mm:ss"
     static func formatPace(_ minutesPerUnit: Double) -> String? {
-        guard minutesPerUnit.isFinite, minutesPerUnit > 0 else { return nil }
-
-        let totalSeconds = Int(round(minutesPerUnit * 60))
-        var minutes = totalSeconds / 60
-        var seconds = totalSeconds % 60
-
-        if seconds == 60 {
-            minutes += 1
-            seconds = 0
-        }
-
-        return "\(minutes):\(String(format: "%02d", seconds))"
+        SharedConversionMath.formatPace(minutesPerUnit)
     }
 
     // MARK: - Conversion
 
     static func paceToSpeed(_ paceMinutes: Double) -> Double {
-        60.0 / paceMinutes
+        SharedConversionMath.paceToSpeed(paceMinutes)
     }
 
     static func speedToPace(_ speed: Double) -> Double {
-        60.0 / speed
+        SharedConversionMath.speedToPace(speed)
     }
 
     static func convertPaceBetweenUnits(_ paceMinutes: Double, from: SpeedUnit, to: SpeedUnit) -> Double {

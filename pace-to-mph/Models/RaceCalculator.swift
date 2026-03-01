@@ -38,16 +38,7 @@ enum RaceCalculator {
 
     /// Format total seconds as "h:mm:ss" or "mm:ss" if under 1 hour.
     static func formatDuration(_ totalSeconds: Int) -> String {
-        guard totalSeconds >= 0 else { return "0:00" }
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-
-        if hours > 0 {
-            return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
-        } else {
-            return "\(minutes):\(String(format: "%02d", seconds))"
-        }
+        SharedConversionMath.formatDuration(totalSeconds)
     }
 
     /// Given finish time (total seconds) and distance, return pace in minutes.
