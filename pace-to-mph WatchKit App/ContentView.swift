@@ -230,6 +230,28 @@ private struct ConverterTab: View {
     @State private var paceMinutes: Int = 8
     @State private var paceSeconds: Int = 0
 
+    private var selectedUnitBinding: Binding<SpeedUnit> {
+        Binding(
+            get: { selectedUnit },
+            set: { newUnit in
+                let previousUnit = selectedUnit
+                guard previousUnit != newUnit else { return }
+
+                if let converted = ConversionEngine.convertPaceComponents(
+                    minutes: paceMinutes,
+                    seconds: paceSeconds,
+                    from: previousUnit,
+                    to: newUnit
+                ) {
+                    paceMinutes = converted.minutes
+                    paceSeconds = converted.seconds
+                }
+
+                selectedUnit = newUnit
+            }
+        )
+    }
+
     private var paceValue: Double {
         Double(paceMinutes) + Double(paceSeconds) / 60.0
     }
@@ -260,7 +282,7 @@ private struct ConverterTab: View {
     private var converterScrollView: some View {
         ScrollView {
             VStack(spacing: 12) {
-                UnitToggle(selectedUnit: $selectedUnit)
+                UnitToggle(selectedUnit: selectedUnitBinding)
 
                 PaceInputRow(
                     paceMinutes: $paceMinutes,
@@ -311,6 +333,28 @@ private struct RaceCalcTab: View {
     @State private var paceMinutes: Int = 8
     @State private var paceSeconds: Int = 0
 
+    private var selectedUnitBinding: Binding<SpeedUnit> {
+        Binding(
+            get: { selectedUnit },
+            set: { newUnit in
+                let previousUnit = selectedUnit
+                guard previousUnit != newUnit else { return }
+
+                if let converted = ConversionEngine.convertPaceComponents(
+                    minutes: paceMinutes,
+                    seconds: paceSeconds,
+                    from: previousUnit,
+                    to: newUnit
+                ) {
+                    paceMinutes = converted.minutes
+                    paceSeconds = converted.seconds
+                }
+
+                selectedUnit = newUnit
+            }
+        )
+    }
+
     private var paceValue: Double {
         Double(paceMinutes) + Double(paceSeconds) / 60.0
     }
@@ -339,7 +383,7 @@ private struct RaceCalcTab: View {
     private var raceScrollView: some View {
         ScrollView {
             VStack(spacing: 10) {
-                UnitToggle(selectedUnit: $selectedUnit)
+                UnitToggle(selectedUnit: selectedUnitBinding)
 
                 DistanceSelector(selected: $selectedDistance)
 

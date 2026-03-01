@@ -75,7 +75,7 @@ struct NegativeSplitView: View {
                         ForEach(SpeedUnit.allCases, id: \.self) { u in
                             Button {
                                 withAnimation(.snappy(duration: 0.25)) {
-                                    selectedUnit = u
+                                    selectUnit(u)
                                 }
                             } label: {
                                 Text(u == .mph ? "Mile" : "KM")
@@ -280,6 +280,20 @@ struct NegativeSplitView: View {
         .padding(20)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
         .sensoryFeedback(.impact(flexibility: .soft), trigger: splitsFeedbackTrigger)
+    }
+
+    private func selectUnit(_ unit: SpeedUnit) {
+        let previousUnit = selectedUnit
+        guard previousUnit != unit else { return }
+
+        customDistanceInput = ConversionEngine.convertDistanceInput(customDistanceInput, from: previousUnit, to: unit)
+
+        if let dropSeconds = Double(dropSecondsInput), dropSeconds >= 0 {
+            let convertedDrop = ConversionEngine.convertPaceBetweenUnits(dropSeconds, from: previousUnit, to: unit)
+            dropSecondsInput = String(Int(convertedDrop.rounded()))
+        }
+
+        selectedUnit = unit
     }
 }
 

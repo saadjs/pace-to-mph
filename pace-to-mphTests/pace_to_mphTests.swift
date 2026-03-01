@@ -104,6 +104,23 @@ struct ConversionEngineTests {
         #expect(ConversionEngine.convertPaceBetweenUnits(8.0, from: .kph, to: .kph) == 8.0)
     }
 
+    @Test func convertPaceInputBetweenUnitsReformatsEquivalentPace() {
+        #expect(ConversionEngine.convertPaceInput("8:00", from: .mph, to: .kph) == "4:58")
+        #expect(ConversionEngine.convertPaceInput("4:58", from: .kph, to: .mph) == "8:00")
+    }
+
+    @Test func convertPaceComponentsBetweenUnitsPreservesValue() {
+        let converted = ConversionEngine.convertPaceComponents(minutes: 8, seconds: 0, from: .mph, to: .kph)
+        #expect(converted != nil)
+        #expect(converted?.minutes == 4)
+        #expect(converted?.seconds == 58)
+    }
+
+    @Test func convertDistanceInputBetweenUnitsReformatsEquivalentDistance() {
+        #expect(ConversionEngine.convertDistanceInput("3.11", from: .mph, to: .kph) == "5")
+        #expect(ConversionEngine.convertDistanceInput("5", from: .kph, to: .mph) == "3.11")
+    }
+
     // MARK: - Full Conversion
 
     @Test func fullPaceToSpeed() {

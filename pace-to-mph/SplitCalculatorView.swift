@@ -103,7 +103,7 @@ struct SplitCalculatorView: View {
             ForEach(SpeedUnit.allCases, id: \.self) { u in
                 Button {
                     withAnimation(.snappy(duration: 0.25)) {
-                        selectedUnit = u
+                        selectUnit(u)
                     }
                 } label: {
                     Text(u == .mph ? "Mile" : "KM")
@@ -233,6 +233,14 @@ struct SplitCalculatorView: View {
         .padding(24)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
         .sensoryFeedback(.impact(flexibility: .soft), trigger: paceText)
+    }
+
+    private func selectUnit(_ unit: SpeedUnit) {
+        let previousUnit = selectedUnit
+        guard previousUnit != unit else { return }
+
+        customDistanceInput = ConversionEngine.convertDistanceInput(customDistanceInput, from: previousUnit, to: unit)
+        selectedUnit = unit
     }
 }
 
