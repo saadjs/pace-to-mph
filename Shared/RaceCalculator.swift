@@ -29,6 +29,24 @@ enum RaceCalculator {
             case .custom: return nil
             }
         }
+
+        var shortLabel: String {
+            switch self {
+            case .halfMarathon: return "Half"
+            default: return rawValue
+            }
+        }
+
+        func distance(unit: SpeedUnit) -> Double? {
+            switch unit {
+            case .mph: return miles
+            case .kph: return kilometers
+            }
+        }
+
+        static var standardCases: [Distance] {
+            allCases.filter { $0 != .custom }
+        }
     }
 
     /// Given pace (min/mile or min/km) and distance in the same unit, return total seconds.
@@ -38,7 +56,16 @@ enum RaceCalculator {
 
     /// Format total seconds as "h:mm:ss" or "mm:ss" if under 1 hour.
     static func formatDuration(_ totalSeconds: Int) -> String {
-        SharedConversionMath.formatDuration(totalSeconds)
+        guard totalSeconds >= 0 else { return "0:00" }
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+
+        if hours > 0 {
+            return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
+        } else {
+            return "\(minutes):\(String(format: "%02d", seconds))"
+        }
     }
 
     /// Given finish time (total seconds) and distance, return pace in minutes.

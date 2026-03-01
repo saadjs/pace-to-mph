@@ -1,26 +1,5 @@
 import SwiftUI
 
-// MARK: - Shared Types
-
-private enum WatchSpeedUnit: String, CaseIterable {
-    case mph
-    case kph
-
-    var paceLabel: String {
-        switch self {
-        case .mph: return "/mi"
-        case .kph: return "/km"
-        }
-    }
-
-    var speedLabel: String {
-        switch self {
-        case .mph: return "MPH"
-        case .kph: return "KM/H"
-        }
-    }
-}
-
 // MARK: - Pace Entry
 
 private struct PaceEntry: Identifiable {
@@ -29,26 +8,6 @@ private struct PaceEntry: Identifiable {
     var id: Int { min * 60 + sec }
     var paceMinutes: Double { Double(min) + Double(sec) / 60.0 }
     var label: String { "\(min):\(String(format: "%02d", sec))" }
-}
-
-// MARK: - Race Distances
-
-private enum WatchRaceDistance: String, CaseIterable, Identifiable {
-    case fiveK = "5K"
-    case tenK = "10K"
-    case halfMarathon = "Half"
-    case marathon = "Marathon"
-
-    var id: String { rawValue }
-
-    func distance(unit: WatchSpeedUnit) -> Double {
-        switch self {
-        case .fiveK: return unit == .mph ? 3.10686 : 5.0
-        case .tenK: return unit == .mph ? 6.21371 : 10.0
-        case .halfMarathon: return unit == .mph ? 13.1094 : 21.0975
-        case .marathon: return unit == .mph ? 26.2188 : 42.195
-        }
-    }
 }
 
 private extension View {
@@ -82,7 +41,7 @@ struct ContentView: View {
 // MARK: - Reference Tab
 
 private struct ReferenceTab: View {
-    @State private var selectedUnit: WatchSpeedUnit = .mph
+    @State private var selectedUnit: SpeedUnit = .mph
 
     private let mphPaces: [PaceEntry] = {
         var result: [PaceEntry] = []
@@ -109,13 +68,13 @@ private struct ReferenceTab: View {
     var body: some View {
         List {
             Picker("Unit", selection: $selectedUnit) {
-                ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
+                ForEach(SpeedUnit.allCases, id: \.self) { unit in
                     Text(unit.speedLabel).tag(unit)
                 }
             }
 
             ForEach(activePaces) { pace in
-                let speed = SharedConversionMath.paceToSpeed(pace.paceMinutes)
+                let speed = ConversionEngine.paceToSpeed(pace.paceMinutes)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(pace.label)
@@ -127,7 +86,7 @@ private struct ReferenceTab: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(SharedConversionMath.formatSpeed(speed))
+                        Text(ConversionEngine.formatSpeed(speed))
                             .font(.system(.title3, design: .rounded, weight: .bold))
                             .monospacedDigit()
                             .foregroundStyle(.green)
@@ -137,7 +96,7 @@ private struct ReferenceTab: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(SharedConversionMath.formatSpeed(speed)) \(selectedUnit.speedLabel)")
+                .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(ConversionEngine.formatSpeed(speed)) \(selectedUnit.speedLabel)")
             }
         }
         .navigationTitle("Reference")
@@ -147,7 +106,7 @@ private struct ReferenceTab: View {
 // MARK: - Converter Tab
 
 private struct ConverterTab: View {
-    @State private var selectedUnit: WatchSpeedUnit = .mph
+    @State private var selectedUnit: SpeedUnit = .mph
     @State private var paceMinutes: Int = 8
     @State private var paceSeconds: Int = 0
 
@@ -157,7 +116,7 @@ private struct ConverterTab: View {
 
     private var speed: Double {
         guard paceValue > 0 else { return 0 }
-        return SharedConversionMath.paceToSpeed(paceValue)
+        return ConversionEngine.paceToSpeed(paceValue)
     }
 
     var body: some View {
@@ -183,7 +142,7 @@ private struct ConverterTab: View {
             VStack(spacing: 12) {
                 // Unit picker
                 Picker("Unit", selection: $selectedUnit) {
-                    ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
+                    ForEach(SpeedUnit.allCases, id: \.self) { unit in
                         Text(unit.speedLabel).tag(unit)
                     }
                 }
@@ -221,7 +180,7 @@ private struct ConverterTab: View {
 
                 // Speed result
                 VStack(spacing: 4) {
-                    Text(SharedConversionMath.formatSpeed(speed))
+                    Text(ConversionEngine.formatSpeed(speed))
                         .font(.system(.title, design: .rounded, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(.green)
@@ -255,8 +214,8 @@ private struct ConverterTab: View {
 // MARK: - Race Calculator Tab
 
 private struct RaceCalcTab: View {
-    @State private var selectedUnit: WatchSpeedUnit = .mph
-    @State private var selectedDistance: WatchRaceDistance = .fiveK
+    @State private var selectedUnit: SpeedUnit = .mph
+    @State private var selectedDistance: RaceCalculator.Distance = .fiveK
     @State private var paceMinutes: Int = 8
     @State private var paceSeconds: Int = 0
 
@@ -265,9 +224,8 @@ private struct RaceCalcTab: View {
     }
 
     private var finishTimeSeconds: Int {
-        guard paceValue > 0 else { return 0 }
-        let distance = selectedDistance.distance(unit: selectedUnit)
-        return Int(round(paceValue * distance * 60))
+        guard paceValue > 0, let distance = selectedDistance.distance(unit: selectedUnit) else { return 0 }
+        return RaceCalculator.finishTime(paceMinutes: paceValue, distanceInUnits: distance)
     }
 
     var body: some View {
@@ -291,7 +249,7 @@ private struct RaceCalcTab: View {
             VStack(spacing: 10) {
                 // Unit picker
                 Picker("Unit", selection: $selectedUnit) {
-                    ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
+                    ForEach(SpeedUnit.allCases, id: \.self) { unit in
                         Text(unit.speedLabel).tag(unit)
                     }
                 }
@@ -301,8 +259,8 @@ private struct RaceCalcTab: View {
 
                 // Distance picker
                 Picker("Distance", selection: $selectedDistance) {
-                    ForEach(WatchRaceDistance.allCases) { d in
-                        Text(d.rawValue).tag(d)
+                    ForEach(RaceCalculator.Distance.standardCases) { d in
+                        Text(d.shortLabel).tag(d)
                     }
                 }
                 .pickerStyle(.wheel)
@@ -342,7 +300,7 @@ private struct RaceCalcTab: View {
                     Text("Finish Time")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(SharedConversionMath.formatDuration(finishTimeSeconds))
+                    Text(RaceCalculator.formatDuration(finishTimeSeconds))
                         .font(.system(.title, design: .rounded, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(.green)
@@ -355,7 +313,6 @@ private struct RaceCalcTab: View {
         }
     }
 }
-
 
 #Preview {
     ContentView()
