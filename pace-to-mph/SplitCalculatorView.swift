@@ -26,20 +26,23 @@ struct SplitCalculatorView: View {
         return formatted
     }
 
-    var body: some View {
-        ZStack {
-            Color(.systemGroupedBackground)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    isTimeFocused = false
-                    isDistanceFocused = false
-                }
+    private var speedText: String {
+        guard let totalSeconds = RaceCalculator.parseDuration(timeInput),
+              totalSeconds > 0,
+              let distance = distanceInUnits,
+              distance > 0 else { return "" }
+        let paceMinutes = RaceCalculator.requiredPace(totalSeconds: totalSeconds, distanceInUnits: distance)
+        let speed = ConversionEngine.paceToSpeed(paceMinutes)
+        return ConversionEngine.formatSpeed(speed)
+    }
 
+    var body: some View {
+        GlassEffectContainer {
             ScrollView {
                 VStack(spacing: 20) {
                     // Time input card
                     VStack(spacing: 16) {
-                        Text("TARGET FINISH TIME")
+                        Text("Target Finish Time")
                             .font(.caption)
                             .fontWeight(.bold)
                             .tracking(0.6)
@@ -64,14 +67,7 @@ struct SplitCalculatorView: View {
                             .frame(maxWidth: 200)
                     }
                     .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .strokeBorder(.quaternary, lineWidth: 1)
-                    )
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
 
                     // Unit picker
                     unitPicker
@@ -92,6 +88,10 @@ struct SplitCalculatorView: View {
                 .padding(.bottom, 32)
             }
         }
+        .onTapGesture {
+            isTimeFocused = false
+            isDistanceFocused = false
+        }
         .navigationTitle("Even Splits")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -109,18 +109,9 @@ struct SplitCalculatorView: View {
                     Text(u == .mph ? "Mile" : "KM")
                         .font(.system(size: 14, weight: .bold))
                         .tracking(1.5)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            Capsule()
-                                .strokeBorder(
-                                    selectedUnit == u ? Color.green : Color(.separator),
-                                    lineWidth: 2
-                                )
-                        )
-                        .foregroundStyle(selectedUnit == u ? .green : .secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .tint(selectedUnit == u ? .green : nil)
             }
         }
     }
@@ -129,7 +120,7 @@ struct SplitCalculatorView: View {
 
     private var distancePicker: some View {
         VStack(spacing: 8) {
-            Text("DISTANCE")
+            Text("Distance")
                 .font(.caption)
                 .fontWeight(.bold)
                 .tracking(0.6)
@@ -146,37 +137,22 @@ struct SplitCalculatorView: View {
                         } label: {
                             Text(d.rawValue)
                                 .font(.system(size: 14, weight: .semibold))
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .background(
-                                    Capsule()
-                                        .fill(selectedDistance == d
-                                              ? Color.green
-                                              : Color(.tertiarySystemGroupedBackground))
-                                )
-                                .foregroundStyle(selectedDistance == d ? .white : .secondary)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.glass)
+                        .tint(selectedDistance == d ? .green : nil)
                     }
                 }
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
     }
 
     // MARK: - Custom Distance
 
     private var customDistanceField: some View {
         VStack(spacing: 8) {
-            Text("CUSTOM DISTANCE")
+            Text("Custom Distance")
                 .font(.caption)
                 .fontWeight(.bold)
                 .tracking(0.6)
@@ -201,50 +177,61 @@ struct SplitCalculatorView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
     }
 
     // MARK: - Result
 
     private var resultCard: some View {
-        VStack(spacing: 6) {
-            Text("REQUIRED PACE")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 16) {
+            VStack(spacing: 6) {
+                Text("Required Pace")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .tracking(0.6)
+                    .foregroundStyle(.secondary)
 
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(paceText.isEmpty ? "–" : paceText)
-                    .font(.largeTitle.bold().monospacedDigit())
-                    .foregroundStyle(paceText.isEmpty ? .tertiary : .primary)
-                    .contentTransition(.numericText())
-                    .animation(.snappy(duration: 0.2), value: paceText)
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(paceText.isEmpty ? "–" : paceText)
+                        .font(.largeTitle.bold().monospacedDigit())
+                        .foregroundStyle(paceText.isEmpty ? .tertiary : .primary)
+                        .contentTransition(.numericText())
+                        .animation(.snappy(duration: 0.2), value: paceText)
 
-                if !paceText.isEmpty {
-                    Text(selectedUnit.paceLabel)
-                        .font(.system(size: 18, weight: .semibold))
+                    if !paceText.isEmpty {
+                        Text(selectedUnit.paceLabel)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if !speedText.isEmpty {
+                Divider()
+
+                VStack(spacing: 6) {
+                    Text("Required Speed")
+                        .font(.caption)
+                        .fontWeight(.bold)
+                        .tracking(0.6)
                         .foregroundStyle(.secondary)
+
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(speedText)
+                            .font(.title.bold().monospacedDigit())
+                            .contentTransition(.numericText())
+                            .animation(.snappy(duration: 0.2), value: speedText)
+
+                        Text(selectedUnit.speedLabel)
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }
         .frame(maxWidth: .infinity)
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
     }
 }
 
