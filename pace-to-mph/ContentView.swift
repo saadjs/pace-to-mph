@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var viewModel = ConverterViewModel()
+    @State private var favoritesStore = FavoritesStore()
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
@@ -37,40 +38,50 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink {
-                        HistoryView(history: viewModel.history)
-                    } label: {
-                        Image(systemName: "clock")
-                            .font(.system(size: 15, weight: .semibold))
-                    }
-                    .accessibilityLabel("Conversion history")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
+                    Menu {
                         NavigationLink {
                             RaceTimeView()
                         } label: {
-                            Image(systemName: "flag.checkered")
-                                .font(.system(size: 15, weight: .semibold))
+                            Label("Race Calculator", systemImage: "flag.checkered")
                         }
-                        .accessibilityLabel("Race finish time")
 
                         NavigationLink {
                             SplitCalculatorView()
                         } label: {
-                            Image(systemName: "chart.bar")
-                                .font(.system(size: 15, weight: .semibold))
+                            Label("Even Splits", systemImage: "chart.bar")
                         }
-                        .accessibilityLabel("Even splits calculator")
+
+                        NavigationLink {
+                            NegativeSplitView()
+                        } label: {
+                            Label("Negative Splits", systemImage: "arrow.down.right")
+                        }
+
+                        Divider()
+
+                        NavigationLink {
+                            FavoritesView(store: favoritesStore)
+                        } label: {
+                            Label("Favorites", systemImage: "star")
+                        }
+
+                        NavigationLink {
+                            HistoryView(history: viewModel.history, favoritesStore: favoritesStore)
+                        } label: {
+                            Label("History", systemImage: "clock")
+                        }
 
                         NavigationLink {
                             ReferenceView()
                         } label: {
-                            Image(systemName: "table")
-                                .font(.system(size: 15, weight: .semibold))
+                            Label("Reference Table", systemImage: "table")
                         }
-                        .accessibilityLabel("Pace reference table")
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 15, weight: .semibold))
                     }
+                    .menuStyle(.button)
+                    .accessibilityLabel("Tools menu")
                 }
             }
         }
@@ -152,9 +163,40 @@ struct ContentView: View {
                     .font(.system(size: 18, weight: .semibold))
                     .tracking(2)
                     .foregroundStyle(.secondary)
+
+                if !viewModel.result.isEmpty {
+                    Button {
+                        withAnimation(.snappy(duration: 0.25)) {
+                            favoritesStore.toggle(
+                                input: viewModel.inputText,
+                                inputSuffix: viewModel.inputSuffix,
+                                result: viewModel.result,
+                                resultSuffix: viewModel.resultSuffix
+                            )
+                        }
+                    } label: {
+                        Image(systemName: favoritesStore.isFavorited(
+                            input: viewModel.inputText,
+                            inputSuffix: viewModel.inputSuffix,
+                            result: viewModel.result,
+                            resultSuffix: viewModel.resultSuffix
+                        ) ? "star.fill" : "star")
+                            .font(.system(size: 20))
+                            .foregroundStyle(favoritesStore.isFavorited(
+                                input: viewModel.inputText,
+                                inputSuffix: viewModel.inputSuffix,
+                                result: viewModel.result,
+                                resultSuffix: viewModel.resultSuffix
+                            ) ? .yellow : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 8)
+                    .accessibilityLabel("Toggle favorite")
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
+            .sensoryFeedback(.impact(flexibility: .soft), trigger: viewModel.result)
         }
         .padding(24)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
