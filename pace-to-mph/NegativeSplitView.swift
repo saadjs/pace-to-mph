@@ -30,6 +30,13 @@ struct NegativeSplitView: View {
         return RaceCalculator.negativeSplits(totalSeconds: totalSeconds, distanceInUnits: distance, dropSeconds: dropSeconds)
     }
 
+    private var splitsFeedbackTrigger: Int {
+        splits.reduce(17) { hash, split in
+            let distanceMillis = Int((split.distance * 1_000).rounded())
+            return ((hash &* 31) &+ distanceMillis) &+ split.seconds
+        }
+    }
+
     var body: some View {
         GlassEffectContainer {
             ScrollView {
@@ -268,7 +275,7 @@ struct NegativeSplitView: View {
         }
         .padding(20)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: splits.count)
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: splitsFeedbackTrigger)
     }
 }
 
