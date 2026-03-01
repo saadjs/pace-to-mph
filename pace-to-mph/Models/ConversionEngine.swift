@@ -33,7 +33,7 @@ enum SpeedUnit: String, CaseIterable {
     }
 }
 
-enum ConversionEngine {
+nonisolated enum ConversionEngine {
     static let kmPerMile: Double = 1.60934
 
     // MARK: - Parsing
