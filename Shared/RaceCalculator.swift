@@ -33,6 +33,7 @@ enum RaceCalculator {
         var shortLabel: String {
             switch self {
             case .halfMarathon: return "Half"
+            case .marathon: return "Full"
             default: return rawValue
             }
         }
