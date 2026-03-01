@@ -107,4 +107,20 @@ struct RaceCalculatorTests {
                     "split \(i) (\(splits[i].seconds)s) must be faster than split \(i-1) (\(splits[i-1].seconds)s)")
         }
     }
+
+    // Regression: when rounding produces difference < 0 (total overshoots), removing
+    // seconds from the fastest (last) splits can make consecutive splits equal.
+    // e.g. 2s/2mi/1s drop → basePace=1.5, rounds to [2,1], sum=3, diff=-1,
+    // reducing last split (already 1) fails, reducing first → [1,1] — not decreasing.
+    @Test func negativeSplitsNegativeDiffPreservesStrictlyDecreasingOrder() {
+        let splits = RaceCalculator.negativeSplits(totalSeconds: 2, distanceInUnits: 2.0, dropSeconds: 1.0)
+        // Either returns valid strictly-decreasing splits or empty (impossible to satisfy)
+        if !splits.isEmpty {
+            #expect(splits.reduce(0) { $0 + $1.seconds } == 2)
+            for i in 1..<splits.count {
+                #expect(splits[i].seconds < splits[i - 1].seconds,
+                        "split \(i) (\(splits[i].seconds)s) must be faster than split \(i-1) (\(splits[i-1].seconds)s)")
+            }
+        }
+    }
 }

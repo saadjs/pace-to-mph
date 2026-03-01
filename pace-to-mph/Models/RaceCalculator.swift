@@ -132,16 +132,11 @@ enum RaceCalculator {
             // Add rounding remainder to the first (slowest) split to preserve non-increasing order
             splitTimes[0] += difference
         } else if difference < 0 {
-            var remaining = -difference
-            for index in stride(from: splitTimes.count - 1, through: 0, by: -1) {
-                let reducible = splitTimes[index] - 1
-                guard reducible > 0 else { continue }
-                let reduction = min(reducible, remaining)
-                splitTimes[index] -= reduction
-                remaining -= reduction
-                if remaining == 0 { break }
-            }
-            guard remaining == 0 else { return [] }
+            // Remove excess from the first (slowest) split to preserve strictly-decreasing order
+            splitTimes[0] += difference
+            guard splitTimes[0] >= 1 else { return [] }
+            // If reducing the first split made it equal/less than the second, splits are impossible
+            if splitTimes.count > 1 && splitTimes[0] <= splitTimes[1] { return [] }
         }
 
         return zip(distances, splitTimes).map { (distance: $0.0, seconds: $0.1) }
