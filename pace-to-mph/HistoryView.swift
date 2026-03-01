@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @Bindable var history: ConversionHistory
+    var favoritesStore: FavoritesStore
     @State private var showClearConfirmation = false
 
     var body: some View {
@@ -15,35 +16,7 @@ struct HistoryView: View {
             } else {
                 List {
                     ForEach(history.records) { record in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 4) {
-                                    Text(record.input)
-                                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                                        .monospacedDigit()
-                                    Text(record.inputSuffix)
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                    Text("→")
-                                        .foregroundStyle(.secondary)
-                                    Text(record.result)
-                                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                                        .monospacedDigit()
-                                        .foregroundStyle(.green)
-                                    Text(record.resultSuffix)
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Text(record.date, format: .relative(presentation: .named))
-                                    .font(.caption)
-                                    .foregroundStyle(.tertiary)
-                            }
-                            Spacer()
-                        }
-                        .padding(.vertical, 4)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(record.input) \(record.inputSuffix) equals \(record.result) \(record.resultSuffix)")
+                        recordRow(record)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -69,10 +42,66 @@ struct HistoryView: View {
             Text("Are you sure you want to clear all conversion history?")
         }
     }
+    // MARK: - Row
+
+    private func recordRow(_ record: ConversionRecord) -> some View {
+        let isFav = favoritesStore.isFavorited(
+            input: record.input,
+            inputSuffix: record.inputSuffix,
+            result: record.result,
+            resultSuffix: record.resultSuffix
+        )
+        return HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Text(record.input)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                    Text(record.inputSuffix)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                    Text("→")
+                        .foregroundStyle(.secondary)
+                    Text(record.result)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.green)
+                    Text(record.resultSuffix)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(record.date, format: .relative(presentation: .named))
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
+            Spacer()
+
+            Button {
+                withAnimation(.snappy(duration: 0.25)) {
+                    favoritesStore.toggle(
+                        input: record.input,
+                        inputSuffix: record.inputSuffix,
+                        result: record.result,
+                        resultSuffix: record.resultSuffix
+                    )
+                }
+            } label: {
+                Image(systemName: isFav ? "star.fill" : "star")
+                    .font(.system(size: 16))
+                    .foregroundStyle(isFav ? Color.yellow : Color.gray.opacity(0.4))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Toggle favorite")
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(record.input) \(record.inputSuffix) equals \(record.result) \(record.resultSuffix)")
+    }
 }
 
 #Preview {
     NavigationStack {
-        HistoryView(history: ConversionHistory())
+        HistoryView(history: ConversionHistory(), favoritesStore: FavoritesStore())
     }
 }
