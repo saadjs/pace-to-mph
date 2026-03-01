@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		W1D6E70D0000000000000013 /* pace-to-mphWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = W1D6E7010000000000000001 /* pace-to-mphWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		939A2E6A2F539928000B40F9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -25,35 +21,13 @@
 			remoteGlobalIDString = 939A2E5B2F539927000B40F9;
 			remoteInfo = "pace-to-mph";
 		};
-		W1D6E70A0000000000000010 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 939A2E542F539927000B40F9 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = W1D6E7060000000000000006;
-			remoteInfo = "pace-to-mphWidgets";
-		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		W1D6E70C0000000000000012 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				W1D6E70D0000000000000013 /* pace-to-mphWidgets.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		939A2E5C2F539927000B40F9 /* pace-to-mph.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "pace-to-mph.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		939A2E692F539928000B40F9 /* pace-to-mphTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "pace-to-mphTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		939A2E732F539928000B40F9 /* pace-to-mphUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "pace-to-mphUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0FFEE010000000000000001 /* pace-to-mph WatchKit App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "pace-to-mph WatchKit App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		W1D6E7010000000000000001 /* pace-to-mphWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "pace-to-mphWidgets.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,11 +49,6 @@
 		C0FFEE020000000000000002 /* pace-to-mph WatchKit App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "pace-to-mph WatchKit App";
-			sourceTree = "<group>";
-		};
-		W1D6E7020000000000000002 /* pace-to-mphWidgets */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "pace-to-mphWidgets";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -113,13 +82,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		W1D6E7040000000000000004 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -128,7 +90,6 @@
 			children = (
 				939A2E5E2F539927000B40F9 /* pace-to-mph */,
 				C0FFEE020000000000000002 /* pace-to-mph WatchKit App */,
-				W1D6E7020000000000000002 /* pace-to-mphWidgets */,
 				939A2E6C2F539928000B40F9 /* pace-to-mphTests */,
 				939A2E762F539928000B40F9 /* pace-to-mphUITests */,
 				939A2E5D2F539927000B40F9 /* Products */,
@@ -142,7 +103,6 @@
 				939A2E692F539928000B40F9 /* pace-to-mphTests.xctest */,
 				939A2E732F539928000B40F9 /* pace-to-mphUITests.xctest */,
 				C0FFEE010000000000000001 /* pace-to-mph WatchKit App.app */,
-				W1D6E7010000000000000001 /* pace-to-mphWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -157,12 +117,10 @@
 				939A2E582F539927000B40F9 /* Sources */,
 				939A2E592F539927000B40F9 /* Frameworks */,
 				939A2E5A2F539927000B40F9 /* Resources */,
-				W1D6E70C0000000000000012 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				W1D6E70B0000000000000011 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				939A2E5E2F539927000B40F9 /* pace-to-mph */,
@@ -242,28 +200,6 @@
 			productReference = C0FFEE010000000000000001 /* pace-to-mph WatchKit App.app */;
 			productType = "com.apple.product-type.application";
 		};
-		W1D6E7060000000000000006 /* pace-to-mphWidgets */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = W1D6E7090000000000000009 /* Build configuration list for PBXNativeTarget "pace-to-mphWidgets" */;
-			buildPhases = (
-				W1D6E7030000000000000003 /* Sources */,
-				W1D6E7040000000000000004 /* Frameworks */,
-				W1D6E7050000000000000005 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				W1D6E7020000000000000002 /* pace-to-mphWidgets */,
-			);
-			name = "pace-to-mphWidgets";
-			packageProductDependencies = (
-			);
-			productName = "pace-to-mphWidgets";
-			productReference = W1D6E7010000000000000001 /* pace-to-mphWidgets.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -288,9 +224,6 @@
 					C0FFEE060000000000000006 = {
 						CreatedOnToolsVersion = 26.0.1;
 					};
-					W1D6E7060000000000000006 = {
-						CreatedOnToolsVersion = 26.0.1;
-					};
 				};
 			};
 			buildConfigurationList = 939A2E572F539927000B40F9 /* Build configuration list for PBXProject "pace-to-mph" */;
@@ -311,7 +244,6 @@
 				939A2E682F539928000B40F9 /* pace-to-mphTests */,
 				939A2E722F539928000B40F9 /* pace-to-mphUITests */,
 				C0FFEE060000000000000006 /* pace-to-mph WatchKit App */,
-				W1D6E7060000000000000006 /* pace-to-mphWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -339,13 +271,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C0FFEE050000000000000005 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		W1D6E7050000000000000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -383,13 +308,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		W1D6E7030000000000000003 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -402,11 +320,6 @@
 			isa = PBXTargetDependency;
 			target = 939A2E5B2F539927000B40F9 /* pace-to-mph */;
 			targetProxy = 939A2E742F539928000B40F9 /* PBXContainerItemProxy */;
-		};
-		W1D6E70B0000000000000011 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = W1D6E7060000000000000006 /* pace-to-mphWidgets */;
-			targetProxy = W1D6E70A0000000000000010 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -742,60 +655,6 @@
 			};
 			name = Release;
 		};
-		W1D6E7070000000000000007 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2ZPA772V9V;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "pace-to-mphWidgets-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "sh.saad.pace-to-mph.widgets";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		W1D6E7080000000000000008 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 2ZPA772V9V;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "pace-to-mphWidgets-Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "sh.saad.pace-to-mph.widgets";
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -840,15 +699,6 @@
 			buildConfigurations = (
 				C0FFEE070000000000000007 /* Debug */,
 				C0FFEE080000000000000008 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		W1D6E7090000000000000009 /* Build configuration list for PBXNativeTarget "pace-to-mphWidgets" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				W1D6E7070000000000000007 /* Debug */,
-				W1D6E7080000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
