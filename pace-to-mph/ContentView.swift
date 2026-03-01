@@ -6,14 +6,7 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color(.systemGroupedBackground)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        isInputFocused = false
-                        viewModel.recordCurrentConversion()
-                    }
-
+            GlassEffectContainer {
                 VStack(spacing: 0) {
                     // Header
                     headerSection
@@ -32,8 +25,16 @@ struct ContentView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                 }
+                .onTapGesture {
+                    isInputFocused = false
+                    viewModel.recordCurrentConversion()
+                }
+                .onChange(of: isInputFocused) { _, focused in
+                    if !focused {
+                        viewModel.recordCurrentConversion()
+                    }
+                }
             }
-            .containerShape(RoundedRectangle(cornerRadius: 44, style: .continuous))
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink {
@@ -156,14 +157,7 @@ struct ContentView: View {
             .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
         }
         .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
     }
 
     // MARK: - Control Panel
@@ -192,14 +186,7 @@ struct ContentView: View {
             unitPicker
         }
         .padding(16)
-        .background(
-            ContainerRelativeShape()
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-        .overlay(
-            ContainerRelativeShape()
-                .strokeBorder(.quaternary, lineWidth: 1)
-        )
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
     }
 
     private var directionPicker: some View {
@@ -215,31 +202,13 @@ struct ContentView: View {
                     Text(dir.label)
                         .font(.system(size: 15, weight: .semibold))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(
-                            viewModel.direction == dir
-                                ? AnyShapeStyle(
-                                    LinearGradient(
-                                        colors: [Color.green.opacity(0.8), Color.green],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                : AnyShapeStyle(Color.clear)
-                        )
-                        .foregroundStyle(viewModel.direction == dir ? .white : .secondary)
-                        .clipShape(Capsule())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .tint(viewModel.direction == dir ? .green : nil)
                 .accessibilityLabel(dir.label)
                 .accessibilityAddTraits(viewModel.direction == dir ? .isSelected : [])
             }
         }
-        .padding(6)
-        .background(
-            Capsule()
-                .fill(Color(.tertiarySystemGroupedBackground))
-        )
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Conversion direction")
     }
@@ -256,18 +225,9 @@ struct ContentView: View {
                     Text(u.label)
                         .font(.system(size: 14, weight: .bold))
                         .tracking(1.5)
-                        .padding(.horizontal, 32)
-                        .padding(.vertical, 14)
-                        .background(
-                            Capsule()
-                                .strokeBorder(
-                                    viewModel.unit == u ? Color.green : Color(.separator),
-                                    lineWidth: 2
-                                )
-                        )
-                        .foregroundStyle(viewModel.unit == u ? .green : .secondary)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
+                .tint(viewModel.unit == u ? .green : nil)
                 .accessibilityLabel(u.label)
                 .accessibilityAddTraits(viewModel.unit == u ? .isSelected : [])
             }
