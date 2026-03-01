@@ -86,20 +86,8 @@ private enum WatchRaceDistance: String, CaseIterable, Identifiable {
 // MARK: - Main View
 
 struct ContentView: View {
-    @State private var selectedTab = 0
-
     var body: some View {
-        TabView(selection: $selectedTab) {
-            ReferenceTab()
-                .tag(0)
-
-            ConverterTab()
-                .tag(1)
-
-            RaceCalcTab()
-                .tag(2)
-        }
-        .tabViewStyle(.verticalPage)
+        ConverterTab()
     }
 }
 
@@ -131,42 +119,40 @@ private struct ReferenceTab: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                Picker("Unit", selection: $selectedUnit) {
-                    ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
-                        Text(unit.speedLabel).tag(unit)
-                    }
-                }
-
-                ForEach(activePaces) { pace in
-                    let speed = paceToSpeed(pace.paceMinutes)
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(pace.label)
-                                .font(.system(.title3, design: .rounded, weight: .bold))
-                                .monospacedDigit()
-                            Text(selectedUnit.paceLabel)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(formatSpeed(speed))
-                                .font(.system(.title3, design: .rounded, weight: .bold))
-                                .monospacedDigit()
-                                .foregroundStyle(.green)
-                            Text(selectedUnit.speedLabel)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(formatSpeed(speed)) \(selectedUnit.speedLabel)")
+        List {
+            Picker("Unit", selection: $selectedUnit) {
+                ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
+                    Text(unit.speedLabel).tag(unit)
                 }
             }
-            .navigationTitle("Reference")
+
+            ForEach(activePaces) { pace in
+                let speed = paceToSpeed(pace.paceMinutes)
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(pace.label)
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .monospacedDigit()
+                        Text(selectedUnit.paceLabel)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(formatSpeed(speed))
+                            .font(.system(.title3, design: .rounded, weight: .bold))
+                            .monospacedDigit()
+                            .foregroundStyle(.green)
+                        Text(selectedUnit.speedLabel)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(formatSpeed(speed)) \(selectedUnit.speedLabel)")
+            }
         }
+        .navigationTitle("Reference")
     }
 }
 
@@ -196,7 +182,6 @@ private struct ConverterTab: View {
                             Text(unit.speedLabel).tag(unit)
                         }
                     }
-                    .pickerStyle(.segmented)
 
                     // Pace input
                     HStack(spacing: 2) {
@@ -236,6 +221,17 @@ private struct ConverterTab: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+
+                    Divider()
+
+                    VStack(spacing: 8) {
+                        NavigationLink("Reference Table") {
+                            ReferenceTab()
+                        }
+                        NavigationLink("Race Calculator") {
+                            RaceCalcTab()
+                        }
+                    }
                 }
                 .padding(.horizontal)
             }
@@ -263,69 +259,67 @@ private struct RaceCalcTab: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 10) {
-                    // Unit picker
-                    Picker("Unit", selection: $selectedUnit) {
-                        ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
-                            Text(unit.speedLabel).tag(unit)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    // Distance picker
-                    Picker("Distance", selection: $selectedDistance) {
-                        ForEach(WatchRaceDistance.allCases) { d in
-                            Text(d.rawValue).tag(d)
-                        }
-                    }
-
-                    // Pace input
-                    HStack(spacing: 2) {
-                        Picker("Min", selection: $paceMinutes) {
-                            ForEach(1...30, id: \.self) { m in
-                                Text("\(m)").tag(m)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 55, height: 60)
-
-                        Text(":")
-                            .font(.title3.bold())
-
-                        Picker("Sec", selection: $paceSeconds) {
-                            ForEach(0..<60, id: \.self) { s in
-                                Text(String(format: "%02d", s)).tag(s)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 55, height: 60)
-
-                        Text(selectedUnit.paceLabel)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-
-                    // Finish time result
-                    VStack(spacing: 4) {
-                        Text("Finish Time")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(formatDuration(finishTimeSeconds))
-                            .font(.system(.title, design: .rounded, weight: .bold))
-                            .monospacedDigit()
-                            .foregroundStyle(.green)
+        ScrollView {
+            VStack(spacing: 10) {
+                // Unit picker
+                Picker("Unit", selection: $selectedUnit) {
+                    ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
+                        Text(unit.speedLabel).tag(unit)
                     }
                 }
-                .padding(.horizontal)
+
+                // Distance picker
+                Picker("Distance", selection: $selectedDistance) {
+                    ForEach(WatchRaceDistance.allCases) { d in
+                        Text(d.rawValue).tag(d)
+                    }
+                }
+
+                // Pace input
+                HStack(spacing: 2) {
+                    Picker("Min", selection: $paceMinutes) {
+                        ForEach(1...30, id: \.self) { m in
+                            Text("\(m)").tag(m)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 55, height: 60)
+
+                    Text(":")
+                        .font(.title3.bold())
+
+                    Picker("Sec", selection: $paceSeconds) {
+                        ForEach(0..<60, id: \.self) { s in
+                            Text(String(format: "%02d", s)).tag(s)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 55, height: 60)
+
+                    Text(selectedUnit.paceLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                // Finish time result
+                VStack(spacing: 4) {
+                    Text("Finish Time")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(formatDuration(finishTimeSeconds))
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.green)
+                }
             }
-            .navigationTitle("Race Calc")
+            .padding(.horizontal)
         }
+        .navigationTitle("Race Calc")
     }
 }
+
 
 #Preview {
     ContentView()
