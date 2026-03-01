@@ -15,9 +15,7 @@ struct SpeedToPaceIntent: AppIntent {
             throw $speed.needsValueError("Please provide a speed greater than zero")
         }
 
-        // Convert to MPH if input is KPH, since base conversion assumes miles
-        let mphSpeed = unit == .kph ? speed / ConversionEngine.kmPerMile : speed
-        let paceMinutes = ConversionEngine.speedToPace(mphSpeed)
+        let paceMinutes = ConversionEngine.speedToPace(speed)
 
         guard let formatted = ConversionEngine.formatPace(paceMinutes) else {
             throw $speed.needsValueError("Could not convert that speed to a pace")

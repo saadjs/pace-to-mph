@@ -15,15 +15,8 @@ struct PaceToSpeedIntent: AppIntent {
             throw $pace.needsValueError("Please provide a valid pace in mm:ss format, e.g. 7:30")
         }
 
-        var speed = ConversionEngine.paceToSpeed(paceMinutes)
-        let paceLabel: String
-
-        if unit == .kph {
-            speed = speed * ConversionEngine.kmPerMile
-            paceLabel = "per mile"
-        } else {
-            paceLabel = "per mile"
-        }
+        let speed = ConversionEngine.paceToSpeed(paceMinutes)
+        let paceLabel = unit == .kph ? "per kilometer" : "per mile"
 
         let formatted = ConversionEngine.formatSpeed(speed)
         let dialog = "A pace of \(pace) \(paceLabel) is \(formatted) \(unit.rawValue)"
