@@ -82,4 +82,48 @@ enum RaceCalculator {
             return nil
         }
     }
+
+    /// Compute negative (progressive) splits.
+    /// - Parameters:
+    ///   - totalSeconds: Target finish time in seconds
+    ///   - distanceInUnits: Total distance in miles or km
+    ///   - dropSeconds: Seconds faster per split (positive value = each split is faster)
+    /// - Returns: Array of (splitDistance, splitSeconds) tuples
+    static func negativeSplits(totalSeconds: Int, distanceInUnits: Double, dropSeconds: Double) -> [(distance: Double, seconds: Int)] {
+        guard distanceInUnits > 0, totalSeconds > 0 else { return [] }
+
+        let fullSplits = Int(distanceInUnits)
+        let partial = distanceInUnits - Double(fullSplits)
+        let splitCount = fullSplits + (partial > 0.001 ? 1 : 0)
+        guard splitCount > 0 else { return [] }
+
+        // Calculate base pace for first split such that total = totalSeconds
+        // Split i has pace: basePace - i * dropSeconds (for full mile/km)
+        // Last split is scaled by partial distance
+        // Sum = sum(basePace - i*drop, i=0..fullSplits-1) + (basePace - fullSplits*drop)*partial
+        // totalSeconds = fullSplits*basePace - drop*(0+1+...+(fullSplits-1)) + partial*(basePace - fullSplits*drop)
+        // totalSeconds = basePace*(fullSplits + partial) - drop*(fullSplits*(fullSplits-1)/2 + partial*fullSplits)
+
+        let n = Double(fullSplits)
+        let effectiveDistance = n + (partial > 0.001 ? partial : 0)
+        let dropSum = dropSeconds * (n * (n - 1) / 2 + (partial > 0.001 ? partial * n : 0))
+
+        guard effectiveDistance > 0 else { return [] }
+        let basePace = (Double(totalSeconds) + dropSum) / effectiveDistance
+
+        var results: [(distance: Double, seconds: Int)] = []
+        for i in 0..<splitCount {
+            let splitPace = basePace - Double(i) * dropSeconds
+            let dist: Double
+            if i == splitCount - 1 && partial > 0.001 {
+                dist = partial
+            } else {
+                dist = 1.0
+            }
+            let splitTime = Int(round(splitPace * dist))
+            results.append((distance: dist, seconds: max(splitTime, 1)))
+        }
+
+        return results
+    }
 }
