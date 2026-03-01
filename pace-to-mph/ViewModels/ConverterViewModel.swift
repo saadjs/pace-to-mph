@@ -85,12 +85,13 @@ final class ConverterViewModel {
 
     func switchDirection(to newDirection: ConversionDirection) {
         guard newDirection != direction else { return }
+        recordCurrentConversion()
         direction = newDirection
     }
 
     func recordCurrentConversion() {
         let currentResult = result
-        guard !currentResult.isEmpty, inputText.count > 1 else { return }
+        guard !currentResult.isEmpty, !inputText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
         history.add(
             input: inputText,
             inputSuffix: inputSuffix,
@@ -101,6 +102,7 @@ final class ConverterViewModel {
 
     func switchUnit(to newUnit: SpeedUnit) {
         guard newUnit != unit else { return }
+        recordCurrentConversion()
         oldUnit = unit
         unit = newUnit
     }

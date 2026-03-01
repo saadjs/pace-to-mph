@@ -21,6 +21,15 @@ class ConversionHistory {
         let trimmed = result.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty, !input.trimmingCharacters(in: .whitespaces).isEmpty else { return }
 
+        // Skip if identical to the most recent record
+        if let last = records.first,
+           last.input == input,
+           last.inputSuffix == inputSuffix,
+           last.result == result,
+           last.resultSuffix == resultSuffix {
+            return
+        }
+
         let record = ConversionRecord(
             id: UUID(),
             input: input,
