@@ -154,8 +154,9 @@ enum RaceCalculator {
             // Remove excess from the first (slowest) split to preserve strictly-decreasing order
             splitTimes[0] += difference
             guard splitTimes[0] >= 1 else { return [] }
-            // If reducing the first split made it equal/less than the second, splits are impossible
-            if splitTimes.count > 1 && splitTimes[0] <= splitTimes[1] { return [] }
+            // If reducing the first split made it strictly less than the second, splits are impossible;
+            // equal is acceptable — it's a rounding artifact, not an invalid case.
+            if splitTimes.count > 1 && splitTimes[0] < splitTimes[1] { return [] }
         }
 
         return zip(distances, splitTimes).map { (distance: $0.0, seconds: $0.1) }

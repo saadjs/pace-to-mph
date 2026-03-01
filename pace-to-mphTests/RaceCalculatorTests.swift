@@ -108,19 +108,34 @@ struct RaceCalculatorTests {
         }
     }
 
-    // Regression: when rounding produces difference < 0 (total overshoots), removing
-    // seconds from the fastest (last) splits can make consecutive splits equal.
-    // e.g. 2s/2mi/1s drop → basePace=1.5, rounds to [2,1], sum=3, diff=-1,
-    // reducing last split (already 1) fails, reducing first → [1,1] — not decreasing.
-    @Test func negativeSplitsNegativeDiffPreservesStrictlyDecreasingOrder() {
+    // Regression: when rounding produces difference < 0 (total overshoots), correcting
+    // the first split gives [1,1] — equal, not strictly decreasing. Since this is purely
+    // a rounding artifact (ideal split times are 1.5s and 0.5s), equal adjacent splits
+    // are acceptable. The result must be non-increasing and sum to totalSeconds.
+    @Test func negativeSplitsNegativeDiffPreservesNonIncreasingOrder() {
         let splits = RaceCalculator.negativeSplits(totalSeconds: 2, distanceInUnits: 2.0, dropSeconds: 1.0)
-        // Either returns valid strictly-decreasing splits or empty (impossible to satisfy)
+        // Either returns valid non-increasing splits or empty (drop is truly impossible to satisfy)
         if !splits.isEmpty {
             #expect(splits.reduce(0) { $0 + $1.seconds } == 2)
             for i in 1..<splits.count {
-                #expect(splits[i].seconds < splits[i - 1].seconds,
-                        "split \(i) (\(splits[i].seconds)s) must be faster than split \(i-1) (\(splits[i-1].seconds)s)")
+                #expect(splits[i].seconds <= splits[i - 1].seconds,
+                        "split \(i) (\(splits[i].seconds)s) must be <= split \(i-1) (\(splits[i-1].seconds)s)")
             }
+        }
+    }
+
+    // Regression: when difference < 0 corrects the first split and leaves it equal to
+    // the second, the result was incorrectly discarded. Equal adjacent splits caused by
+    // integer rounding are acceptable and should be returned.
+    // 5s/3mi/1s drop → basePace=2.667, rounds to [3,2,1]=6, diff=-1 → [2,2,1]=5.
+    // The first two splits are equal: a rounding artifact, not an impossible case.
+    @Test func negativeSplitsNegativeDiffAllowsEqualAdjacentFromRounding() {
+        let splits = RaceCalculator.negativeSplits(totalSeconds: 5, distanceInUnits: 3.0, dropSeconds: 1.0)
+        #expect(splits.count == 3)
+        #expect(splits.reduce(0) { $0 + $1.seconds } == 5)
+        for i in 1..<splits.count {
+            #expect(splits[i].seconds <= splits[i - 1].seconds,
+                    "split \(i) (\(splits[i].seconds)s) must be <= split \(i-1) (\(splits[i-1].seconds)s)")
         }
     }
 }
