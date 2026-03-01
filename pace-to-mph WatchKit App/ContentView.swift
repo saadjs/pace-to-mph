@@ -10,6 +10,129 @@ private struct PaceEntry: Identifiable {
     var label: String { "\(min):\(String(format: "%02d", sec))" }
 }
 
+// MARK: - Inline Pace Picker
+
+private struct PaceInputRow: View {
+    @Binding var paceMinutes: Int
+    @Binding var paceSeconds: Int
+    let paceLabel: String
+
+    @State private var editingSeconds = false
+    @State private var crownValue: Double = 0
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("\(paceMinutes)")
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .monospacedDigit()
+                .frame(width: 48, height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(!editingSeconds ? Color.green : Color.white.opacity(0.3), lineWidth: 2)
+                )
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .onTapGesture {
+                    editingSeconds = false
+                    crownValue = Double(paceMinutes)
+                }
+
+            Text(":")
+                .font(.title3.bold())
+
+            Text(String(format: "%02d", paceSeconds))
+                .font(.system(.title3, design: .rounded, weight: .bold))
+                .monospacedDigit()
+                .frame(width: 48, height: 48)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(editingSeconds ? Color.green : Color.white.opacity(0.3), lineWidth: 2)
+                )
+                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                .onTapGesture {
+                    editingSeconds = true
+                    crownValue = Double(paceSeconds)
+                }
+
+            Text(paceLabel)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .focusable()
+        .digitalCrownRotation(
+            detent: $crownValue,
+            from: 0, through: 59, by: 1,
+            sensitivity: .low,
+            isContinuous: false
+        )
+        .onChange(of: crownValue) { _, newValue in
+            if editingSeconds {
+                paceSeconds = Int(newValue)
+            } else {
+                let clamped = max(1, min(30, Int(newValue)))
+                paceMinutes = clamped
+                if Int(newValue) != clamped { crownValue = Double(clamped) }
+            }
+        }
+        .onAppear { crownValue = Double(paceMinutes) }
+    }
+}
+
+// MARK: - Custom Selectors
+
+private struct UnitToggle: View {
+    @Binding var selectedUnit: SpeedUnit
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(SpeedUnit.allCases, id: \.self) { unit in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedUnit = unit }
+                } label: {
+                    Text(unit.speedLabel)
+                        .font(.caption.bold())
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(selectedUnit == unit ? .white : .secondary)
+                .background(
+                    selectedUnit == unit ? Color.green : Color.white.opacity(0.08),
+                    in: Capsule()
+                )
+            }
+        }
+    }
+}
+
+private struct DistanceSelector: View {
+    @Binding var selected: RaceCalculator.Distance
+
+    private let distances = RaceCalculator.Distance.standardCases
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(distances) { distance in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { selected = distance }
+                } label: {
+                    Text(distance.shortLabel)
+                        .font(.caption2.bold())
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(selected == distance ? .white : .secondary)
+                .background(
+                    selected == distance ? Color.green : Color.white.opacity(0.08),
+                    in: Capsule()
+                )
+            }
+        }
+    }
+}
+
 private extension View {
     @ViewBuilder
     func watchGlassCard(cornerRadius: CGFloat = 16) -> some View {
@@ -67,11 +190,8 @@ private struct ReferenceTab: View {
 
     var body: some View {
         List {
-            Picker("Unit", selection: $selectedUnit) {
-                ForEach(SpeedUnit.allCases, id: \.self) { unit in
-                    Text(unit.speedLabel).tag(unit)
-                }
-            }
+            UnitToggle(selectedUnit: $selectedUnit)
+                .listRowBackground(Color.clear)
 
             ForEach(activePaces) { pace in
                 let speed = ConversionEngine.paceToSpeed(pace.paceMinutes)
@@ -140,41 +260,13 @@ private struct ConverterTab: View {
     private var converterScrollView: some View {
         ScrollView {
             VStack(spacing: 12) {
-                // Unit picker
-                Picker("Unit", selection: $selectedUnit) {
-                    ForEach(SpeedUnit.allCases, id: \.self) { unit in
-                        Text(unit.speedLabel).tag(unit)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .frame(height: 44)
-                .clipped()
+                UnitToggle(selectedUnit: $selectedUnit)
 
-                // Pace input
-                HStack(spacing: 2) {
-                    Picker("Min", selection: $paceMinutes) {
-                        ForEach(1...30, id: \.self) { m in
-                            Text("\(m)").tag(m)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(width: 55, height: 60)
-
-                    Text(":")
-                        .font(.title3.bold())
-
-                    Picker("Sec", selection: $paceSeconds) {
-                        ForEach(0..<60, id: \.self) { s in
-                            Text(String(format: "%02d", s)).tag(s)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(width: 55, height: 60)
-
-                    Text(selectedUnit.paceLabel)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                PaceInputRow(
+                    paceMinutes: $paceMinutes,
+                    paceSeconds: $paceSeconds,
+                    paceLabel: selectedUnit.paceLabel
+                )
 
                 Divider()
 
@@ -247,51 +339,15 @@ private struct RaceCalcTab: View {
     private var raceScrollView: some View {
         ScrollView {
             VStack(spacing: 10) {
-                // Unit picker
-                Picker("Unit", selection: $selectedUnit) {
-                    ForEach(SpeedUnit.allCases, id: \.self) { unit in
-                        Text(unit.speedLabel).tag(unit)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .frame(height: 44)
-                .clipped()
+                UnitToggle(selectedUnit: $selectedUnit)
 
-                // Distance picker
-                Picker("Distance", selection: $selectedDistance) {
-                    ForEach(RaceCalculator.Distance.standardCases) { d in
-                        Text(d.shortLabel).tag(d)
-                    }
-                }
-                .pickerStyle(.wheel)
-                .frame(height: 44)
-                .clipped()
+                DistanceSelector(selected: $selectedDistance)
 
-                // Pace input
-                HStack(spacing: 2) {
-                    Picker("Min", selection: $paceMinutes) {
-                        ForEach(1...30, id: \.self) { m in
-                            Text("\(m)").tag(m)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(width: 55, height: 60)
-
-                    Text(":")
-                        .font(.title3.bold())
-
-                    Picker("Sec", selection: $paceSeconds) {
-                        ForEach(0..<60, id: \.self) { s in
-                            Text(String(format: "%02d", s)).tag(s)
-                        }
-                    }
-                    .pickerStyle(.wheel)
-                    .frame(width: 55, height: 60)
-
-                    Text(selectedUnit.paceLabel)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                PaceInputRow(
+                    paceMinutes: $paceMinutes,
+                    paceSeconds: $paceSeconds,
+                    paceLabel: selectedUnit.paceLabel
+                )
 
                 Divider()
 
