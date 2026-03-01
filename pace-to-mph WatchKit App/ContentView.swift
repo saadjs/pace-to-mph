@@ -21,38 +21,6 @@ private enum WatchSpeedUnit: String, CaseIterable {
     }
 }
 
-// MARK: - Conversion Helpers
-
-private func paceToSpeed(_ paceMinutes: Double) -> Double {
-    60.0 / paceMinutes
-}
-
-private func speedToPace(_ speed: Double) -> Double {
-    60.0 / speed
-}
-
-private func formatSpeed(_ value: Double) -> String {
-    String(format: "%.2f", value)
-}
-
-private func formatPace(_ minutesPerUnit: Double) -> String {
-    let totalSeconds = Int(round(minutesPerUnit * 60))
-    let minutes = totalSeconds / 60
-    let seconds = totalSeconds % 60
-    return "\(minutes):\(String(format: "%02d", seconds))"
-}
-
-private func formatDuration(_ totalSeconds: Int) -> String {
-    guard totalSeconds >= 0 else { return "0:00" }
-    let hours = totalSeconds / 3600
-    let minutes = (totalSeconds % 3600) / 60
-    let seconds = totalSeconds % 60
-    if hours > 0 {
-        return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
-    }
-    return "\(minutes):\(String(format: "%02d", seconds))"
-}
-
 // MARK: - Pace Entry
 
 private struct PaceEntry: Identifiable {
@@ -79,6 +47,26 @@ private enum WatchRaceDistance: String, CaseIterable, Identifiable {
         case .tenK: return unit == .mph ? 6.21371 : 10.0
         case .halfMarathon: return unit == .mph ? 13.1094 : 21.0975
         case .marathon: return unit == .mph ? 26.2188 : 42.195
+        }
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func watchGlassCard(cornerRadius: CGFloat = 16) -> some View {
+        if #available(watchOS 26.0, *) {
+            self.glassEffect(.regular.interactive(), in: .rect(cornerRadius: cornerRadius))
+        } else {
+            self.background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: cornerRadius))
+        }
+    }
+
+    @ViewBuilder
+    func watchGlassButton() -> some View {
+        if #available(watchOS 26.0, *) {
+            self.buttonStyle(.glass)
+        } else {
+            self.buttonStyle(.bordered)
         }
     }
 }
@@ -127,7 +115,7 @@ private struct ReferenceTab: View {
             }
 
             ForEach(activePaces) { pace in
-                let speed = paceToSpeed(pace.paceMinutes)
+                let speed = SharedConversionMath.paceToSpeed(pace.paceMinutes)
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(pace.label)
@@ -139,7 +127,7 @@ private struct ReferenceTab: View {
                     }
                     Spacer()
                     VStack(alignment: .trailing, spacing: 2) {
-                        Text(formatSpeed(speed))
+                        Text(SharedConversionMath.formatSpeed(speed))
                             .font(.system(.title3, design: .rounded, weight: .bold))
                             .monospacedDigit()
                             .foregroundStyle(.green)
@@ -149,7 +137,7 @@ private struct ReferenceTab: View {
                     }
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(formatSpeed(speed)) \(selectedUnit.speedLabel)")
+                .accessibilityLabel("\(pace.label) \(selectedUnit.paceLabel) equals \(SharedConversionMath.formatSpeed(speed)) \(selectedUnit.speedLabel)")
             }
         }
         .navigationTitle("Reference")
@@ -169,73 +157,97 @@ private struct ConverterTab: View {
 
     private var speed: Double {
         guard paceValue > 0 else { return 0 }
-        return paceToSpeed(paceValue)
+        return SharedConversionMath.paceToSpeed(paceValue)
     }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    // Unit picker
-                    Picker("Unit", selection: $selectedUnit) {
-                        ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
-                            Text(unit.speedLabel).tag(unit)
-                        }
-                    }
+            converterContent
+            .navigationTitle("Converter")
+        }
+    }
 
-                    // Pace input
-                    HStack(spacing: 2) {
-                        Picker("Min", selection: $paceMinutes) {
-                            ForEach(1...30, id: \.self) { m in
-                                Text("\(m)").tag(m)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 55, height: 60)
+    @ViewBuilder
+    private var converterContent: some View {
+        if #available(watchOS 26.0, *) {
+            GlassEffectContainer {
+                converterScrollView
+            }
+        } else {
+            converterScrollView
+        }
+    }
 
-                        Text(":")
-                            .font(.title3.bold())
-
-                        Picker("Sec", selection: $paceSeconds) {
-                            ForEach(0..<60, id: \.self) { s in
-                                Text(String(format: "%02d", s)).tag(s)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(width: 55, height: 60)
-
-                        Text(selectedUnit.paceLabel)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-
-                    // Speed result
-                    VStack(spacing: 4) {
-                        Text(formatSpeed(speed))
-                            .font(.system(.title, design: .rounded, weight: .bold))
-                            .monospacedDigit()
-                            .foregroundStyle(.green)
-                        Text(selectedUnit.speedLabel)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Divider()
-
-                    VStack(spacing: 8) {
-                        NavigationLink("Reference Table") {
-                            ReferenceTab()
-                        }
-                        NavigationLink("Race Calculator") {
-                            RaceCalcTab()
-                        }
+    private var converterScrollView: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                // Unit picker
+                Picker("Unit", selection: $selectedUnit) {
+                    ForEach(WatchSpeedUnit.allCases, id: \.self) { unit in
+                        Text(unit.speedLabel).tag(unit)
                     }
                 }
-                .padding(.horizontal)
+                .pickerStyle(.wheel)
+                .frame(height: 44)
+                .clipped()
+
+                // Pace input
+                HStack(spacing: 2) {
+                    Picker("Min", selection: $paceMinutes) {
+                        ForEach(1...30, id: \.self) { m in
+                            Text("\(m)").tag(m)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 55, height: 60)
+
+                    Text(":")
+                        .font(.title3.bold())
+
+                    Picker("Sec", selection: $paceSeconds) {
+                        ForEach(0..<60, id: \.self) { s in
+                            Text(String(format: "%02d", s)).tag(s)
+                        }
+                    }
+                    .pickerStyle(.wheel)
+                    .frame(width: 55, height: 60)
+
+                    Text(selectedUnit.paceLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Divider()
+
+                // Speed result
+                VStack(spacing: 4) {
+                    Text(SharedConversionMath.formatSpeed(speed))
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.green)
+                    Text(selectedUnit.speedLabel)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .watchGlassCard()
+
+                Divider()
+
+                VStack(spacing: 8) {
+                    NavigationLink("Reference Table") {
+                        ReferenceTab()
+                    }
+                    .watchGlassButton()
+
+                    NavigationLink("Race Calculator") {
+                        RaceCalcTab()
+                    }
+                    .watchGlassButton()
+                }
             }
-            .navigationTitle("Converter")
+            .padding(.horizontal)
         }
     }
 }
@@ -259,6 +271,22 @@ private struct RaceCalcTab: View {
     }
 
     var body: some View {
+        raceContent
+        .navigationTitle("Race Calc")
+    }
+
+    @ViewBuilder
+    private var raceContent: some View {
+        if #available(watchOS 26.0, *) {
+            GlassEffectContainer {
+                raceScrollView
+            }
+        } else {
+            raceScrollView
+        }
+    }
+
+    private var raceScrollView: some View {
         ScrollView {
             VStack(spacing: 10) {
                 // Unit picker
@@ -267,6 +295,9 @@ private struct RaceCalcTab: View {
                         Text(unit.speedLabel).tag(unit)
                     }
                 }
+                .pickerStyle(.wheel)
+                .frame(height: 44)
+                .clipped()
 
                 // Distance picker
                 Picker("Distance", selection: $selectedDistance) {
@@ -274,6 +305,9 @@ private struct RaceCalcTab: View {
                         Text(d.rawValue).tag(d)
                     }
                 }
+                .pickerStyle(.wheel)
+                .frame(height: 44)
+                .clipped()
 
                 // Pace input
                 HStack(spacing: 2) {
@@ -308,15 +342,17 @@ private struct RaceCalcTab: View {
                     Text("Finish Time")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(formatDuration(finishTimeSeconds))
+                    Text(SharedConversionMath.formatDuration(finishTimeSeconds))
                         .font(.system(.title, design: .rounded, weight: .bold))
                         .monospacedDigit()
                         .foregroundStyle(.green)
                 }
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .watchGlassCard()
             }
             .padding(.horizontal)
         }
-        .navigationTitle("Race Calc")
     }
 }
 
