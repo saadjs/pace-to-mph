@@ -70,6 +70,8 @@ struct FavoritesView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(fav.input) \(fav.inputSuffix) equals \(fav.result) \(fav.resultSuffix)")
 
             Spacer()
 
@@ -87,8 +89,6 @@ struct FavoritesView: View {
         }
         .padding(16)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(fav.input) \(fav.inputSuffix) equals \(fav.result) \(fav.resultSuffix)")
     }
 }
 

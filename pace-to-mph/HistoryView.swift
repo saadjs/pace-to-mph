@@ -75,6 +75,9 @@ struct HistoryView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(record.input) \(record.inputSuffix) equals \(record.result) \(record.resultSuffix)")
+            .accessibilityValue("Converted \(record.date.formatted(.relative(presentation: .named)))")
             Spacer()
 
             Button {
@@ -92,11 +95,9 @@ struct HistoryView: View {
                     .foregroundStyle(isFav ? Color.yellow : Color.gray.opacity(0.4))
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Toggle favorite")
+            .accessibilityLabel(isFav ? "Remove from favorites" : "Add to favorites")
         }
         .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(record.input) \(record.inputSuffix) equals \(record.result) \(record.resultSuffix)")
     }
 }
 

@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import pace_to_mph
 
 struct ConversionEngineTests {
@@ -188,6 +189,51 @@ struct ReviewRegressionTests {
         )
 
         #expect(combineIndex < favoriteIndex)
+    }
+
+    @Test func favoritesRowKeepsRemoveButtonFocusable() throws {
+        let favoritesView = try testFileContents("pace-to-mph", "FavoritesView.swift")
+        let rowSection = try #require(
+            slice(
+                in: favoritesView,
+                from: "private func favoriteCard(_ fav: FavoriteConversion) -> some View {",
+                to: "#Preview {"
+            )
+        )
+
+        #expect(!rowSection.contains("""
+        .padding(16)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
+        """))
+    }
+
+    @Test func historyRowKeepsFavoriteButtonFocusable() throws {
+        let historyView = try testFileContents("pace-to-mph", "HistoryView.swift")
+        let rowSection = try #require(
+            slice(
+                in: historyView,
+                from: "private func recordRow(_ record: ConversionRecord) -> some View {",
+                to: "#Preview {"
+            )
+        )
+
+        #expect(!rowSection.contains("""
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        """))
+    }
+
+    @Test func favoriteButtonsUseActionBasedLabels() throws {
+        let contentView = try testFileContents("pace-to-mph", "ContentView.swift")
+        let historyView = try testFileContents("pace-to-mph", "HistoryView.swift")
+
+        #expect(!contentView.contains("Toggle favorite"))
+        #expect(!historyView.contains("Toggle favorite"))
+        #expect(contentView.contains("Add to favorites"))
+        #expect(contentView.contains("Remove from favorites"))
+        #expect(historyView.contains("Add to favorites"))
+        #expect(historyView.contains("Remove from favorites"))
     }
 }
 

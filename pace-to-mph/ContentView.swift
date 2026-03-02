@@ -169,6 +169,12 @@ struct ContentView: View {
                 .accessibilityLabel(viewModel.result.isEmpty ? "No result" : "\(viewModel.result) \(viewModel.resultSuffix)")
 
                 if !viewModel.result.isEmpty {
+                    let isFav = favoritesStore.isFavorited(
+                        input: viewModel.inputText,
+                        inputSuffix: viewModel.inputSuffix,
+                        result: viewModel.result,
+                        resultSuffix: viewModel.resultSuffix
+                    )
                     Button {
                         withAnimation(.snappy(duration: 0.25)) {
                             favoritesStore.toggle(
@@ -179,19 +185,13 @@ struct ContentView: View {
                             )
                         }
                     } label: {
-                        let isFav = favoritesStore.isFavorited(
-                            input: viewModel.inputText,
-                            inputSuffix: viewModel.inputSuffix,
-                            result: viewModel.result,
-                            resultSuffix: viewModel.resultSuffix
-                        )
                         Image(systemName: isFav ? "star.fill" : "star")
                             .font(.system(size: 20))
                             .foregroundStyle(isFav ? .yellow : .secondary)
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 8)
-                    .accessibilityLabel("Toggle favorite")
+                    .accessibilityLabel(isFav ? "Remove from favorites" : "Add to favorites")
                 }
             }
             .sensoryFeedback(.impact(flexibility: .soft), trigger: viewModel.result)
