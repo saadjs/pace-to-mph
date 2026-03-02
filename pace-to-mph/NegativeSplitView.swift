@@ -289,7 +289,7 @@ struct NegativeSplitView: View {
         customDistanceInput = ConversionEngine.convertDistanceInput(customDistanceInput, from: previousUnit, to: unit)
 
         if let dropSeconds = Double(dropSecondsInput), dropSeconds >= 0 {
-            let convertedDrop = ConversionEngine.convertPaceBetweenUnits(dropSeconds, from: previousUnit, to: unit)
+            let convertedDrop = ConversionEngine.convertDropSecondsBetweenUnits(dropSeconds, from: previousUnit, to: unit)
             dropSecondsInput = String(Int(convertedDrop.rounded()))
         }
 

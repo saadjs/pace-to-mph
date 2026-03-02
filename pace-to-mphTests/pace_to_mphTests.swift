@@ -117,6 +117,21 @@ struct ConversionEngineTests {
         #expect(converted?.seconds == 58)
     }
 
+    // Regression: dropSeconds in NegativeSplitView is a time-per-distance rate (seconds),
+    // not a pace in minutes. Dedicated helper must convert it correctly.
+    @Test func convertDropSecondsBetweenUnits() {
+        // 5 sec/mi → ~3 sec/km (5 / 1.60934)
+        let toKph = ConversionEngine.convertDropSecondsBetweenUnits(5.0, from: .mph, to: .kph)
+        #expect(abs(toKph - 5.0 / 1.60934) < 0.01)
+
+        // 3 sec/km → ~4.83 sec/mi (3 * 1.60934)
+        let toMph = ConversionEngine.convertDropSecondsBetweenUnits(3.0, from: .kph, to: .mph)
+        #expect(abs(toMph - 3.0 * 1.60934) < 0.01)
+
+        // Same unit → unchanged
+        #expect(ConversionEngine.convertDropSecondsBetweenUnits(5.0, from: .mph, to: .mph) == 5.0)
+    }
+
     @Test func convertDistanceInputBetweenUnitsReformatsEquivalentDistance() {
         #expect(ConversionEngine.convertDistanceInput("3.11", from: .mph, to: .kph) == "5.01")
         #expect(ConversionEngine.convertDistanceInput("5", from: .kph, to: .mph) == "3.11")

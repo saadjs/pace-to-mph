@@ -124,6 +124,12 @@ nonisolated enum ConversionEngine {
         return from == .mph ? speed * kmPerMile : speed / kmPerMile
     }
 
+    /// Convert a time-per-distance delta (e.g. drop seconds per split) between unit systems.
+    static func convertDropSecondsBetweenUnits(_ seconds: Double, from: SpeedUnit, to: SpeedUnit) -> Double {
+        guard from != to else { return seconds }
+        return from == .mph ? seconds / kmPerMile : seconds * kmPerMile
+    }
+
     static func convertPaceInput(_ paceInput: String, from: SpeedUnit, to: SpeedUnit) -> String {
         guard from != to, let pace = parsePace(paceInput) else { return paceInput }
         let converted = convertPaceBetweenUnits(pace, from: from, to: to)
