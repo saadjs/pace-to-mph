@@ -20,6 +20,9 @@ private struct PaceInputRow: View {
     @State private var editingSeconds = false
     @State private var crownValue: Double = 0
 
+    private var crownMax: Double { editingSeconds ? 59 : 30 }
+    private var crownMin: Double { editingSeconds ? 0 : 1 }
+
     var body: some View {
         HStack(spacing: 4) {
             Text("\(paceMinutes)")
@@ -60,7 +63,7 @@ private struct PaceInputRow: View {
         .focusable()
         .digitalCrownRotation(
             detent: $crownValue,
-            from: 0, through: 59, by: 1,
+            from: crownMin, through: crownMax, by: 1,
             sensitivity: .low,
             isContinuous: false
         )
@@ -68,9 +71,7 @@ private struct PaceInputRow: View {
             if editingSeconds {
                 paceSeconds = Int(newValue)
             } else {
-                let clamped = max(1, min(30, Int(newValue)))
-                paceMinutes = clamped
-                if Int(newValue) != clamped { crownValue = Double(clamped) }
+                paceMinutes = Int(newValue)
             }
         }
         .onAppear { crownValue = Double(paceMinutes) }
@@ -223,6 +224,34 @@ private struct ReferenceTab: View {
     }
 }
 
+// MARK: - Shared Helpers
+
+private func makeUnitBinding(
+    unit: Binding<SpeedUnit>,
+    paceMinutes: Binding<Int>,
+    paceSeconds: Binding<Int>
+) -> Binding<SpeedUnit> {
+    Binding(
+        get: { unit.wrappedValue },
+        set: { newUnit in
+            let previousUnit = unit.wrappedValue
+            guard previousUnit != newUnit else { return }
+
+            if let converted = ConversionEngine.convertPaceComponents(
+                minutes: paceMinutes.wrappedValue,
+                seconds: paceSeconds.wrappedValue,
+                from: previousUnit,
+                to: newUnit
+            ) {
+                paceMinutes.wrappedValue = converted.minutes
+                paceSeconds.wrappedValue = converted.seconds
+            }
+
+            unit.wrappedValue = newUnit
+        }
+    )
+}
+
 // MARK: - Converter Tab
 
 private struct ConverterTab: View {
@@ -231,25 +260,7 @@ private struct ConverterTab: View {
     @State private var paceSeconds: Int = 0
 
     private var selectedUnitBinding: Binding<SpeedUnit> {
-        Binding(
-            get: { selectedUnit },
-            set: { newUnit in
-                let previousUnit = selectedUnit
-                guard previousUnit != newUnit else { return }
-
-                if let converted = ConversionEngine.convertPaceComponents(
-                    minutes: paceMinutes,
-                    seconds: paceSeconds,
-                    from: previousUnit,
-                    to: newUnit
-                ) {
-                    paceMinutes = converted.minutes
-                    paceSeconds = converted.seconds
-                }
-
-                selectedUnit = newUnit
-            }
-        )
+        makeUnitBinding(unit: $selectedUnit, paceMinutes: $paceMinutes, paceSeconds: $paceSeconds)
     }
 
     private var paceValue: Double {
@@ -334,25 +345,7 @@ private struct RaceCalcTab: View {
     @State private var paceSeconds: Int = 0
 
     private var selectedUnitBinding: Binding<SpeedUnit> {
-        Binding(
-            get: { selectedUnit },
-            set: { newUnit in
-                let previousUnit = selectedUnit
-                guard previousUnit != newUnit else { return }
-
-                if let converted = ConversionEngine.convertPaceComponents(
-                    minutes: paceMinutes,
-                    seconds: paceSeconds,
-                    from: previousUnit,
-                    to: newUnit
-                ) {
-                    paceMinutes = converted.minutes
-                    paceSeconds = converted.seconds
-                }
-
-                selectedUnit = newUnit
-            }
-        )
+        makeUnitBinding(unit: $selectedUnit, paceMinutes: $paceMinutes, paceSeconds: $paceSeconds)
     }
 
     private var paceValue: Double {
