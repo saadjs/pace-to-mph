@@ -8,8 +8,29 @@ enum RaceCalculatorMode: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .paceToTime: return "Find Time"
-        case .timeToPace: return "Find Pace"
+        case .paceToTime: return "Pace → Time"
+        case .timeToPace: return "Time → Pace"
+        }
+    }
+
+    var inputTitle: String {
+        switch self {
+        case .paceToTime: return "PACE"
+        case .timeToPace: return "FINISH TIME"
+        }
+    }
+
+    var resultTitle: String {
+        switch self {
+        case .paceToTime: return "Finish Time"
+        case .timeToPace: return "Target Pace"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .paceToTime: return "timer"
+        case .timeToPace: return "figure.run"
         }
     }
 }
@@ -91,30 +112,11 @@ struct RaceTimeView: View {
     var body: some View {
         GlassEffectContainer {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     modePicker
-
-                    if mode == .paceToTime {
-                        paceInputCard
-                    } else {
-                        timeInputCard
-                    }
-
-                    if shouldShowUnitPicker {
-                        unitPicker
-                    }
-
-                    distancePicker
-
-                    if selectedDistance == .custom {
-                        customDistanceField
-                    }
-
-                    if mode == .paceToTime {
-                        finishResultCard
-                    } else {
-                        targetPaceResultCard
-                    }
+                    inputCard
+                    distanceSection
+                    resultCard
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 16)
@@ -133,7 +135,7 @@ struct RaceTimeView: View {
     // MARK: - Mode Picker
 
     private var modePicker: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             ForEach(RaceCalculatorMode.allCases) { m in
                 Button {
                     withAnimation(.snappy(duration: 0.25)) {
@@ -142,9 +144,16 @@ struct RaceTimeView: View {
                         isTimeFocused = false
                     }
                 } label: {
-                    Text(m.label)
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
+                    Label {
+                        Text(m.label)
+                            .font(.system(size: 15, weight: .semibold))
+                    } icon: {
+                        Image(systemName: m.systemImage)
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .labelStyle(.titleAndIcon)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 42)
                 }
                 .buttonStyle(.glass)
                 .tint(mode == m ? .green : nil)
@@ -157,14 +166,25 @@ struct RaceTimeView: View {
 
     // MARK: - Input Cards
 
+    @ViewBuilder
+    private var inputCard: some View {
+        switch mode {
+        case .paceToTime:
+            paceInputCard
+        case .timeToPace:
+            timeInputCard
+        }
+    }
+
     private var paceInputCard: some View {
         VStack(spacing: 16) {
-            Text("PACE")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack {
+                sectionLabel(mode.inputTitle)
+
+                Spacer()
+
+                unitPicker(style: .pace)
+            }
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("mm:ss", text: $paceInput)
@@ -192,12 +212,7 @@ struct RaceTimeView: View {
 
     private var timeInputCard: some View {
         VStack(spacing: 16) {
-            Text("FINISH TIME")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            sectionLabel(mode.inputTitle)
 
             TextField("h:mm:ss", text: $timeInput)
                 .font(.system(size: 44, weight: .bold, design: .rounded))
@@ -226,38 +241,45 @@ struct RaceTimeView: View {
 
     // MARK: - Unit Picker
 
-    private var shouldShowUnitPicker: Bool {
-        mode == .paceToTime || selectedDistance == .custom
+    private enum UnitPickerStyle {
+        case pace
+        case distance
     }
 
-    private var unitPicker: some View {
-        HStack(spacing: 16) {
+    private func unitPicker(style: UnitPickerStyle) -> some View {
+        HStack(spacing: 8) {
             ForEach(SpeedUnit.allCases, id: \.self) { u in
                 Button {
                     withAnimation(.snappy(duration: 0.25)) {
                         selectUnit(u)
                     }
                 } label: {
-                    Text(u.paceLabel)
-                        .font(.system(size: 14, weight: .bold))
-                        .tracking(1.5)
+                    Text(unitLabel(for: u, style: style))
+                        .font(.system(size: 12, weight: .bold))
+                        .tracking(0.8)
+                        .frame(minWidth: 42)
                 }
                 .buttonStyle(.glass)
                 .tint(selectedUnit == u ? .green : nil)
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(style == .pace ? "Pace unit" : "Distance unit")
     }
 
     // MARK: - Distance Picker
 
-    private var distancePicker: some View {
-        VStack(spacing: 8) {
-            Text("Distance")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private var distanceSection: some View {
+        VStack(spacing: 14) {
+            HStack {
+                sectionLabel("DISTANCE")
+
+                Spacer()
+
+                if mode == .timeToPace && selectedDistance == .custom {
+                    unitPicker(style: .distance)
+                }
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -275,22 +297,20 @@ struct RaceTimeView: View {
                     }
                 }
             }
+
+            if selectedDistance == .custom {
+                Divider()
+                customDistanceField
+            }
         }
         .padding(16)
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 20))
     }
 
     // MARK: - Custom Distance
 
     private var customDistanceField: some View {
-        VStack(spacing: 8) {
-            Text("Custom Distance")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
+        VStack(spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("0.0", text: $customDistanceInput)
                     .font(.system(size: 32, weight: .bold, design: .rounded))
@@ -303,25 +323,30 @@ struct RaceTimeView: View {
                         customDistanceInput = newValue.filter { $0.isNumber || $0 == "." }
                     }
 
-                Text(selectedUnit == .mph ? "miles" : "km")
+                Text(distanceLabel(for: selectedUnit))
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .foregroundStyle(.secondary)
             }
+
         }
-        .padding(16)
-        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
     }
 
     // MARK: - Result Cards
 
+    @ViewBuilder
+    private var resultCard: some View {
+        switch mode {
+        case .paceToTime:
+            finishResultCard
+        case .timeToPace:
+            targetPaceResultCard
+        }
+    }
+
     private var finishResultCard: some View {
         VStack(spacing: 16) {
             VStack(spacing: 6) {
-                Text("Finish Time")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .tracking(0.6)
-                    .foregroundStyle(.secondary)
+                sectionLabel(mode.resultTitle, alignment: .center)
 
                 Text(finishTimeText.isEmpty ? "–" : finishTimeText)
                     .font(.largeTitle.bold().monospacedDigit())
@@ -378,11 +403,7 @@ struct RaceTimeView: View {
 
     private var targetPaceResultCard: some View {
         VStack(spacing: 16) {
-            Text("Target Pace")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
+            sectionLabel(mode.resultTitle, alignment: .center)
 
             if hasTargetPaceResult {
                 HStack(spacing: 0) {
@@ -408,6 +429,12 @@ struct RaceTimeView: View {
         let speed = speedTextForTargetPace(unit: unit)
 
         return VStack(spacing: 10) {
+            Text(unit == .mph ? "MILE" : "KILOMETER")
+                .font(.caption2)
+                .fontWeight(.bold)
+                .tracking(0.6)
+                .foregroundStyle(.secondary)
+
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(pace.isEmpty ? "–" : pace)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
@@ -432,6 +459,28 @@ struct RaceTimeView: View {
             }
         }
         .frame(maxWidth: .infinity)
+    }
+
+    private func sectionLabel(_ text: String, alignment: Alignment = .leading) -> some View {
+        Text(text)
+            .font(.caption)
+            .fontWeight(.bold)
+            .tracking(0.6)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: alignment)
+    }
+
+    private func unitLabel(for unit: SpeedUnit, style: UnitPickerStyle) -> String {
+        switch style {
+        case .pace:
+            return unit.paceLabel
+        case .distance:
+            return unit == .mph ? "mi" : "km"
+        }
+    }
+
+    private func distanceLabel(for unit: SpeedUnit) -> String {
+        unit == .mph ? "miles" : "km"
     }
 
     private func selectUnit(_ unit: SpeedUnit) {
