@@ -2,11 +2,13 @@ import SwiftUI
 
 struct SplitCalculatorView: View {
     @State private var timeInput: String = ""
-    @State private var selectedUnit: SpeedUnit = .mph
+    @State private var settings = UnitSettings.shared
     @State private var selectedDistance: RaceCalculator.Distance = .fiveK
     @State private var customDistanceInput: String = ""
     @FocusState private var isTimeFocused: Bool
     @FocusState private var isDistanceFocused: Bool
+
+    private var selectedUnit: SpeedUnit { settings.unit }
 
     private var distanceInUnits: Double? {
         if selectedDistance == .custom {
@@ -69,9 +71,6 @@ struct SplitCalculatorView: View {
                     .padding(24)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
 
-                    // Unit picker
-                    unitPicker
-
                     // Distance picker
                     distancePicker
 
@@ -94,26 +93,6 @@ struct SplitCalculatorView: View {
         }
         .navigationTitle("Even Splits")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // MARK: - Unit Picker
-
-    private var unitPicker: some View {
-        HStack(spacing: 16) {
-            ForEach(SpeedUnit.allCases, id: \.self) { u in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        selectUnit(u)
-                    }
-                } label: {
-                    Text(u == .mph ? "Mile" : "KM")
-                        .font(.system(size: 14, weight: .bold))
-                        .tracking(1.5)
-                }
-                .buttonStyle(.glass)
-                .tint(selectedUnit == u ? .green : nil)
-            }
-        }
     }
 
     // MARK: - Distance Picker
@@ -235,13 +214,6 @@ struct SplitCalculatorView: View {
         .sensoryFeedback(.impact(flexibility: .soft), trigger: paceText)
     }
 
-    private func selectUnit(_ unit: SpeedUnit) {
-        let previousUnit = selectedUnit
-        guard previousUnit != unit else { return }
-
-        customDistanceInput = ConversionEngine.convertDistanceInput(customDistanceInput, from: previousUnit, to: unit)
-        selectedUnit = unit
-    }
 }
 
 #Preview {

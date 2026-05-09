@@ -2,7 +2,8 @@ import SwiftUI
 
 struct RunHistoryView: View {
     @State private var service = HealthKitService()
-    @State private var unit: SpeedUnit = .mph
+    @State private var settings = UnitSettings.shared
+    private var unit: SpeedUnit { settings.unit }
 
     var body: some View {
         Group {
@@ -19,36 +20,11 @@ struct RunHistoryView: View {
         }
         .navigationTitle("Run History")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if service.authorizationState == .authorized {
-                ToolbarItem(placement: .topBarTrailing) {
-                    unitToggle
-                }
-            }
-        }
         .task {
             await service.bootstrap()
             if service.authorizationState == .authorized {
                 await service.refresh()
                 service.startObserving()
-            }
-        }
-    }
-
-    private var unitToggle: some View {
-        HStack(spacing: 6) {
-            ForEach(SpeedUnit.allCases, id: \.self) { u in
-                Button {
-                    withAnimation(.snappy(duration: 0.2)) { unit = u }
-                } label: {
-                    Text(u.label)
-                        .font(.system(size: 12, weight: .bold))
-                        .tracking(1.2)
-                }
-                .buttonStyle(.glass)
-                .tint(unit == u ? .green : nil)
-                .accessibilityLabel(u.label)
-                .accessibilityAddTraits(unit == u ? .isSelected : [])
             }
         }
     }

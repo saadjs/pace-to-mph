@@ -70,6 +70,14 @@ struct ContentView: View {
                         } label: {
                             Label("Reference Table", systemImage: "table")
                         }
+
+                        Divider()
+
+                        NavigationLink {
+                            SettingsView()
+                        } label: {
+                            Label("Settings", systemImage: "gear")
+                        }
                     } label: {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 15, weight: .semibold))
@@ -197,7 +205,6 @@ struct ContentView: View {
 
     private var controlPanel: some View {
         VStack(spacing: 14) {
-            // Direction labels
             HStack {
                 Text("Conversion")
                     .font(.caption)
@@ -205,18 +212,9 @@ struct ContentView: View {
                     .tracking(0.6)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("Units")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .tracking(0.6)
-                    .foregroundStyle(.secondary)
             }
 
-            // Direction picker
             directionPicker
-
-            // Unit picker
-            unitPicker
         }
         .padding(16)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
@@ -244,29 +242,6 @@ struct ContentView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Conversion direction")
-    }
-
-    private var unitPicker: some View {
-        HStack(spacing: 16) {
-            ForEach(SpeedUnit.allCases, id: \.self) { u in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        viewModel.switchUnit(to: u)
-                    }
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Text(u.label)
-                        .font(.system(size: 14, weight: .bold))
-                        .tracking(1.5)
-                }
-                .buttonStyle(.glass)
-                .tint(viewModel.unit == u ? .green : nil)
-                .accessibilityLabel(u.label)
-                .accessibilityAddTraits(viewModel.unit == u ? .isSelected : [])
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Speed unit")
     }
 
 }
