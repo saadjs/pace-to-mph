@@ -1,6 +1,6 @@
 import Foundation
 
-enum ConversionDirection: String, CaseIterable {
+enum ConversionDirection: String, CaseIterable, Hashable {
     case paceToSpeed
     case speedToPace
 
@@ -12,7 +12,7 @@ enum ConversionDirection: String, CaseIterable {
     }
 }
 
-enum SpeedUnit: String, CaseIterable {
+enum SpeedUnit: String, CaseIterable, Hashable {
     case mph
     case kph
 

@@ -106,22 +106,13 @@ struct SplitCalculatorView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(RaceCalculator.Distance.allCases) { d in
-                        Button {
-                            withAnimation(.snappy(duration: 0.25)) {
-                                selectedDistance = d
-                            }
-                        } label: {
-                            Text(d.rawValue)
-                                .font(.system(size: 14, weight: .semibold))
-                        }
-                        .buttonStyle(.glass)
-                        .tint(selectedDistance == d ? .green : nil)
-                    }
+            Picker("Distance", selection: $selectedDistance) {
+                ForEach(RaceCalculator.Distance.allCases) { d in
+                    Text(d.shortLabel).tag(d)
                 }
             }
+            .pickerStyle(.segmented)
+            .tint(.green)
         }
         .padding(16)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))

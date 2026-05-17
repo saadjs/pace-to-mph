@@ -221,27 +221,22 @@ struct ContentView: View {
     }
 
     private var directionPicker: some View {
-        HStack(spacing: 6) {
-            ForEach(ConversionDirection.allCases, id: \.self) { dir in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        isInputFocused = false
-                        viewModel.switchDirection(to: dir)
-                    }
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                } label: {
-                    Text(dir.label)
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
+        Picker("Conversion direction", selection: Binding(
+            get: { viewModel.direction },
+            set: { direction in
+                withAnimation(.snappy(duration: 0.25)) {
+                    isInputFocused = false
+                    viewModel.switchDirection(to: direction)
                 }
-                .buttonStyle(.glass)
-                .tint(viewModel.direction == dir ? .green : nil)
-                .accessibilityLabel(dir.label)
-                .accessibilityAddTraits(viewModel.direction == dir ? .isSelected : [])
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
+        )) {
+            ForEach(ConversionDirection.allCases, id: \.self) { dir in
+                Text(dir.label).tag(dir)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Conversion direction")
+        .pickerStyle(.segmented)
+        .tint(.green)
     }
 
 }

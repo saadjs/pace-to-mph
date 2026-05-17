@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum RaceCalculatorMode: String, CaseIterable, Identifiable {
+enum RaceCalculatorMode: String, CaseIterable, Hashable, Identifiable {
     case paceToTime
     case timeToPace
 
@@ -137,33 +137,22 @@ struct RaceTimeView: View {
     // MARK: - Mode Picker
 
     private var modePicker: some View {
-        HStack(spacing: 8) {
-            ForEach(RaceCalculatorMode.allCases) { m in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        mode = m
-                        isPaceFocused = false
-                        isTimeFocused = false
-                    }
-                } label: {
-                    Label {
-                        Text(m.label)
-                            .font(.system(size: 15, weight: .semibold))
-                    } icon: {
-                        Image(systemName: m.systemImage)
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .labelStyle(.titleAndIcon)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 42)
+        Picker("Race calculator mode", selection: Binding(
+            get: { mode },
+            set: { selectedMode in
+                withAnimation(.snappy(duration: 0.25)) {
+                    mode = selectedMode
+                    isPaceFocused = false
+                    isTimeFocused = false
                 }
-                .buttonStyle(.glass)
-                .tint(mode == m ? .green : nil)
-                .accessibilityAddTraits(mode == m ? .isSelected : [])
+            }
+        )) {
+            ForEach(RaceCalculatorMode.allCases) { m in
+                Text(m.label).tag(m)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Race calculator mode")
+        .pickerStyle(.segmented)
+        .tint(.green)
     }
 
     // MARK: - Input Cards
@@ -241,22 +230,13 @@ struct RaceTimeView: View {
         VStack(spacing: 14) {
             sectionLabel("DISTANCE")
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(RaceCalculator.Distance.allCases) { d in
-                        Button {
-                            withAnimation(.snappy(duration: 0.25)) {
-                                selectedDistance = d
-                            }
-                        } label: {
-                            Text(d.rawValue)
-                                .font(.system(size: 14, weight: .semibold))
-                        }
-                        .buttonStyle(.glass)
-                        .tint(selectedDistance == d ? .green : nil)
-                    }
+            Picker("Distance", selection: $selectedDistance) {
+                ForEach(RaceCalculator.Distance.allCases) { d in
+                    Text(d.shortLabel).tag(d)
                 }
             }
+            .pickerStyle(.segmented)
+            .tint(.green)
 
             if selectedDistance == .custom {
                 Divider()

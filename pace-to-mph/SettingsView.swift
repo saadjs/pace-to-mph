@@ -36,26 +36,19 @@ struct SettingsView: View {
     }
 
     private var unitPicker: some View {
-        HStack(spacing: 6) {
+        Picker("Speed unit", selection: Binding(
+            get: { settings.unit },
+            set: { unit in
+                settings.unit = unit
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
+        )) {
             ForEach(SpeedUnit.allCases, id: \.self) { u in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        settings.unit = u
-                    }
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Text(u.label)
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glass)
-                .tint(settings.unit == u ? .green : nil)
-                .accessibilityLabel(u.label)
-                .accessibilityAddTraits(settings.unit == u ? .isSelected : [])
+                Text(u.label).tag(u)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Speed unit")
+        .pickerStyle(.segmented)
+        .tint(.green)
     }
 }
 
