@@ -11,7 +11,17 @@ import SwiftUI
 struct pace_to_mphApp: App {
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("-runHistoryPreview") {
+                RunHistoryDebugPreviewView(
+                    showTrends: ProcessInfo.processInfo.arguments.contains("-runHistoryTrendsPreview")
+                )
+            } else {
+                ContentView()
+            }
+            #else
             ContentView()
+            #endif
         }
     }
 }
