@@ -1,10 +1,17 @@
 import Charts
 import SwiftUI
+import SwiftData
 
 struct RunHistoryView: View {
-    @State private var service = HealthKitService()
+    let service: HealthKitService
+
+    @Environment(\.modelContext) private var modelContext
     @State private var settings = UnitSettings.shared
     private var unit: SpeedUnit { settings.unit }
+
+    init(service: HealthKitService) {
+        self.service = service
+    }
 
     var body: some View {
         Group {
@@ -22,6 +29,7 @@ struct RunHistoryView: View {
         .navigationTitle("Run History")
         .navigationBarTitleDisplayMode(.inline)
         .task {
+            service.configure(modelContext: modelContext)
             await service.bootstrap()
             if service.authorizationState == .authorized {
                 await service.refresh()

@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import SwiftData
 
 @Observable
 @MainActor
@@ -11,9 +12,9 @@ final class HealthKitService {
         case unavailable
     }
 
-    private let store = HKHealthStore()
+    private let healthStore = HKHealthStore()
+    private var runStore: RunWorkoutStore?
     private var observerQuery: HKObserverQuery?
-    private var anchor: HKQueryAnchor?
 
     var authorizationState: AuthorizationState = .notDetermined
     var runs: [RunWorkout] = []
@@ -26,14 +27,22 @@ final class HealthKitService {
         return types
     }
 
+    func configure(modelContext: ModelContext) {
+        guard runStore == nil else { return }
+        runStore = RunWorkoutStore(modelContext: modelContext)
+    }
+
     func bootstrap() async {
+        loadCachedRuns()
         guard HKHealthStore.isHealthDataAvailable() else {
             authorizationState = .unavailable
             return
         }
-        // We can't reliably know read-auth status; if we've previously fetched, treat as authorized.
-        // Otherwise leave as notDetermined so the user is prompted.
-        if !runs.isEmpty {
+
+        let didRequestAuthorization = (try? runStore?.didRequestAuthorization()) ?? false
+        // HealthKit doesn't expose read-auth status. A previous successful request or cached workouts
+        // is our durable signal that the app can sync without prompting again.
+        if didRequestAuthorization || !runs.isEmpty {
             authorizationState = .authorized
         }
     }
@@ -44,7 +53,8 @@ final class HealthKitService {
             return
         }
         do {
-            try await store.requestAuthorization(toShare: [], read: readTypes)
+            try await healthStore.requestAuthorization(toShare: [], read: readTypes)
+            try runStore?.markAuthorizationRequested()
             authorizationState = .authorized
             await refresh()
             startObserving()
@@ -55,45 +65,88 @@ final class HealthKitService {
     }
 
     func refresh() async {
-        guard HKHealthStore.isHealthDataAvailable() else { return }
+        guard HKHealthStore.isHealthDataAvailable() else {
+            loadCachedRuns()
+            return
+        }
+
         isLoading = true
         defer { isLoading = false }
+
         do {
-            let workouts = try await fetchRunningWorkouts()
-            runs = workouts
-            if !workouts.isEmpty {
+            guard let runStore else {
+                let changes = try await fetchRunningWorkoutChanges(anchor: nil)
+                runs = changes.workouts.sorted { $0.startDate > $1.startDate }
                 authorizationState = .authorized
+                return
+            }
+
+            let anchor = try storedAnchor()
+            let changes = try await fetchRunningWorkoutChanges(anchor: anchor)
+            try runStore.applyChanges(
+                upserting: changes.workouts,
+                deleting: changes.deletedIDs,
+                anchorData: try Self.archiveAnchor(changes.anchor)
+            )
+            loadCachedRuns()
+            authorizationState = .authorized
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    private func loadCachedRuns() {
+        do {
+            if let cachedRuns = try runStore?.fetchRuns() {
+                runs = cachedRuns
             }
         } catch {
             lastError = error.localizedDescription
         }
     }
 
-    private func fetchRunningWorkouts() async throws -> [RunWorkout] {
-        let workoutType = HKObjectType.workoutType()
-        let predicate = HKQuery.predicateForWorkouts(with: .running)
-        let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
-
-        return try await withCheckedThrowingContinuation { continuation in
-            let query = HKSampleQuery(
-                sampleType: workoutType,
-                predicate: predicate,
-                limit: HKObjectQueryNoLimit,
-                sortDescriptors: [sort]
-            ) { _, samples, error in
-                if let error {
-                    continuation.resume(throwing: error)
-                    return
-                }
-                let workouts = (samples as? [HKWorkout]) ?? []
-                let mapped = workouts.map { Self.mapWorkout($0) }
-                continuation.resume(returning: mapped)
-            }
-            store.execute(query)
+    private func storedAnchor() throws -> HKQueryAnchor? {
+        guard let data = try runStore?.anchorData() else { return nil }
+        do {
+            return try NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
+        } catch {
+            try runStore?.applyChanges(upserting: [], deleting: [], anchorData: nil)
+            return nil
         }
     }
 
-    private static func mapWorkout(_ workout: HKWorkout) -> RunWorkout {
+    private func fetchRunningWorkoutChanges(anchor: HKQueryAnchor?) async throws -> RunningWorkoutChanges {
+        let workoutType = HKObjectType.workoutType()
+        let predicate = HKQuery.predicateForWorkouts(with: .running)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKAnchoredObjectQuery(
+                type: workoutType,
+                predicate: predicate,
+                anchor: anchor,
+                limit: HKObjectQueryNoLimit,
+                resultsHandler: { _, samples, deletedObjects, newAnchor, error in
+                    if let error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+                    let workouts = (samples as? [HKWorkout]) ?? []
+                    let mapped = workouts.map { Self.mapWorkout($0) }
+                    let deletedIDs = (deletedObjects ?? []).map(\.uuid)
+                    continuation.resume(
+                        returning: RunningWorkoutChanges(
+                            workouts: mapped,
+                            deletedIDs: deletedIDs,
+                            anchor: newAnchor
+                        )
+                    )
+                }
+            )
+            healthStore.execute(query)
+        }
+    }
+
+    private nonisolated static func mapWorkout(_ workout: HKWorkout) -> RunWorkout {
         let meters: Double = {
             if let stats = workout.statistics(for: HKQuantityType(.distanceWalkingRunning)),
                let sum = stats.sumQuantity() {
@@ -117,17 +170,40 @@ final class HealthKitService {
     func startObserving() {
         guard observerQuery == nil else { return }
         let workoutType = HKObjectType.workoutType()
-        let query = HKObserverQuery(sampleType: workoutType, predicate: nil) { [weak self] _, completionHandler, error in
-            if error == nil {
-                Task { @MainActor in
-                    await self?.refresh()
+        let predicate = HKQuery.predicateForWorkouts(with: .running)
+        let query = HKObserverQuery(sampleType: workoutType, predicate: predicate) { [weak self] _, completionHandler, error in
+            let message = error?.localizedDescription
+            Task { @MainActor [weak self] in
+                defer { completionHandler() }
+                if let message {
+                    self?.lastError = message
+                    return
                 }
+                await self?.refresh()
             }
-            completionHandler()
         }
-        store.execute(query)
+        healthStore.execute(query)
         observerQuery = query
 
-        store.enableBackgroundDelivery(for: workoutType, frequency: .immediate) { _, _ in }
+        healthStore.enableBackgroundDelivery(for: workoutType, frequency: .immediate) { [weak self] _, error in
+            if let error {
+                let message = error.localizedDescription
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.lastError = message
+                }
+            }
+        }
     }
+
+    private static func archiveAnchor(_ anchor: HKQueryAnchor?) throws -> Data? {
+        guard let anchor else { return nil }
+        return try NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true)
+    }
+}
+
+private struct RunningWorkoutChanges {
+    let workouts: [RunWorkout]
+    let deletedIDs: [UUID]
+    let anchor: HKQueryAnchor?
 }

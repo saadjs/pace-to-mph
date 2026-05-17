@@ -1,6 +1,6 @@
 import Foundation
 
-struct RunWorkout: Identifiable, Hashable {
+nonisolated struct RunWorkout: Identifiable, Hashable {
     let id: UUID
     let startDate: Date
     let endDate: Date

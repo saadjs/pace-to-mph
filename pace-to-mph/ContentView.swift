@@ -1,9 +1,15 @@
 import SwiftUI
 
 struct ContentView: View {
+    let healthKitService: HealthKitService
+
     @State private var viewModel = ConverterViewModel()
     @State private var favoritesStore = FavoritesStore()
     @FocusState private var isInputFocused: Bool
+
+    init(healthKitService: HealthKitService) {
+        self.healthKitService = healthKitService
+    }
 
     var body: some View {
         NavigationStack {
@@ -54,7 +60,7 @@ struct ContentView: View {
                         Divider()
 
                         NavigationLink {
-                            RunHistoryView()
+                            RunHistoryView(service: healthKitService)
                         } label: {
                             Label("Run History", systemImage: "figure.run")
                         }
@@ -242,5 +248,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(healthKitService: HealthKitService())
 }
