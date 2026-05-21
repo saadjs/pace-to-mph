@@ -232,6 +232,27 @@ struct ReviewRegressionTests {
         #expect(contentView.contains("Remove from favorites"))
     }
 
+    // Regression: switching unit while a value is typed silently reinterpreted
+    // the value (e.g. 8:00/mi as 8:00/km). VM must clear input on unit change.
+    @Test func converterClearsInputOnUnitChange() {
+        let vm = ConverterViewModel()
+        vm.handleInput("8:30")
+        #expect(vm.inputText == "8:30")
+        vm.handleUnitChange()
+        #expect(vm.inputText == "")
+    }
+
+    // Regression: HealthKit hides read-denial; empty-state must offer a
+    // recovery path via Settings (read-only apps don't appear in Health app).
+    @Test func runHistoryEmptyStateOffersSettingsRecovery() throws {
+        let view = try testFileContents("pace-to-mph", "RunHistoryView.swift")
+        let emptyView = try #require(
+            slice(in: view, from: "private var emptyRunsView", to: "}\n}")
+        )
+        #expect(emptyView.contains("UIApplication.openSettingsURLString"))
+        #expect(emptyView.contains("Open Settings"))
+    }
+
 }
 
 private func testFileContents(_ pathComponents: String...) throws -> String {
