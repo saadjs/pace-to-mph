@@ -97,16 +97,39 @@ struct RunHistoryView: View {
             if service.isLoading && service.runs.isEmpty {
                 ProgressView("Importing...")
             } else if service.runs.isEmpty {
-                ContentUnavailableView(
-                    "No runs found",
-                    systemImage: "figure.run",
-                    description: Text("Recorded runs from Apple Fitness or Health will appear here.")
-                )
+                emptyRunsView
             } else {
                 RunHistoryContent(runs: service.runs, unit: unit)
                     .refreshable { await service.refresh() }
             }
         }
+    }
+
+    // HealthKit hides read-denial from apps, so we always offer a recovery
+    // path when authorized-but-empty in case the user said no at the prompt.
+    // Read-only apps don't appear in Health -> Sharing -> Apps, so we send
+    // users to Settings -> Apps -> Health -> Data Access & Devices.
+    private var emptyRunsView: some View {
+        VStack(spacing: 16) {
+            ContentUnavailableView(
+                "No runs found",
+                systemImage: "figure.run",
+                description: Text("If you have runs in Apple Health, open Settings → Apps → Health → Data Access & Devices → RunPace and turn on read access.")
+            )
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Text("Open Settings")
+                    .font(.system(size: 15, weight: .semibold))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glass)
+            .tint(.green)
+        }
+        .padding(.bottom, 24)
     }
 }
 
