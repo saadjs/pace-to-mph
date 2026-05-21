@@ -119,7 +119,7 @@ private struct RunHistoryContent: View {
     @State private var selectedChartPoint: RunChartPoint?
     @State private var expandedWeekIDs: Set<String> = []
     @State private var selectedMode: RunHistoryMode
-    @State private var selectedPeriod: RunHistoryPeriod = .year
+    @State private var selectedPeriod: RunHistoryPeriod = .week
     @State private var selectedMonthStart = RunHistoryStats.monthStart(containing: Date())
     @State private var selectedYearFilter = RunHistoryYearFilter.current()
 
@@ -127,7 +127,7 @@ private struct RunHistoryContent: View {
         self.runs = runs
         self.unit = unit
         _selectedMode = State(initialValue: initialMode)
-        _selectedPeriod = State(initialValue: .year)
+        _selectedPeriod = State(initialValue: .week)
     }
 
     private var records: [RunPersonalRecord] {
@@ -532,9 +532,9 @@ private struct RunPerformanceChart: View {
         selectedPoint
     }
 
-    private var deltaText: String {
-        guard let first = points.first, let last = points.last else { return "" }
-        let delta = last.speed - first.speed
+    private func deltaString(from start: RunChartPoint?, to end: RunChartPoint?) -> String? {
+        guard let start, let end, start.id != end.id else { return nil }
+        let delta = end.speed - start.speed
         return "\(delta >= 0 ? "+" : "-")\(String(format: "%.2f", abs(delta))) \(unit.speedLabel)"
     }
 
@@ -551,18 +551,9 @@ private struct RunPerformanceChart: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("\(record?.target.shortLabel ?? "RUN") trend - \(selectedRange.shortTitle)")
-                    .font(.system(size: 16, weight: .black, design: .rounded))
-                    .foregroundStyle(.primary)
-                Spacer()
-                if !deltaText.isEmpty {
-                    Text(deltaText)
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundStyle(deltaText.hasPrefix("+") ? .green : .red)
-                        .monospacedDigit()
-                }
-            }
+            headerContent
+                .frame(height: 44, alignment: .top)
+                .animation(.easeOut(duration: 0.12), value: displayPoint?.id)
 
             chart
                 .frame(height: 142)
@@ -571,6 +562,60 @@ private struct RunPerformanceChart: View {
         }
         .padding(16)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+        .sensoryFeedback(trigger: selectedPoint?.id) { _, new in
+            new != nil ? .selection : nil
+        }
+    }
+
+    @ViewBuilder
+    private var headerContent: some View {
+        if let displayPoint {
+            scrubHeader(for: displayPoint)
+        } else {
+            idleHeader
+        }
+    }
+
+    private var idleHeader: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("\(record?.target.shortLabel ?? "RUN") trend - \(selectedRange.shortTitle)")
+                .font(.system(size: 16, weight: .black, design: .rounded))
+                .foregroundStyle(.primary)
+            Spacer()
+            if let delta = deltaString(from: points.first, to: points.last) {
+                Text(delta)
+                    .font(.system(size: 12, weight: .black, design: .rounded))
+                    .foregroundStyle(delta.hasPrefix("+") ? .green : .red)
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    private func scrubHeader(for point: RunChartPoint) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("\(String(format: "%.2f", point.speed)) \(unit.speedLabel)")
+                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .monospacedDigit()
+                Text("\(point.paceText) \(unit.paceLabel)")
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 1) {
+                Text(point.date, format: .dateTime.month(.abbreviated).day().year())
+                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                if let delta = deltaString(from: points.first, to: point) {
+                    Text(delta)
+                        .font(.system(size: 12, weight: .black, design: .rounded))
+                        .foregroundStyle(delta.hasPrefix("+") ? .green : .red)
+                        .monospacedDigit()
+                }
+            }
+        }
     }
 
     private var chart: some View {
@@ -602,10 +647,7 @@ private struct RunPerformanceChart: View {
             if let displayPoint {
                 RuleMark(x: .value("Selected date", displayPoint.date))
                     .foregroundStyle(Color.secondary.opacity(0.5))
-                    .lineStyle(.init(lineWidth: 1, dash: [2, 3]))
-                    .annotation(position: .top, alignment: .center, overflowResolution: .init(x: .fit, y: .disabled)) {
-                        chartTooltip(displayPoint)
-                    }
+                    .lineStyle(.init(lineWidth: 1))
 
                 PointMark(
                     x: .value("Selected date", displayPoint.date),
@@ -655,6 +697,9 @@ private struct RunPerformanceChart: View {
                                     }
                                     selectNearestPoint(to: date)
                                 }
+                                .onEnded { _ in
+                                    selectedPoint = nil
+                                }
                         )
                 }
             }
@@ -692,25 +737,6 @@ private struct RunPerformanceChart: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Chart range")
-    }
-
-    private func chartTooltip(_ point: RunChartPoint) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(point.date, format: .dateTime.month(.abbreviated).day().year())
-                .font(.system(size: 10, weight: .black, design: .monospaced))
-                .foregroundStyle(.secondary)
-            Text("\(String(format: "%.2f", point.speed)) \(unit.speedLabel) - \(point.paceText) \(unit.paceLabel)")
-                .font(.system(size: 11, weight: .black, design: .rounded))
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(.systemBackground))
-                .shadow(color: .black.opacity(0.08), radius: 8, y: 3)
-        )
     }
 
     private func selectNearestPoint(to date: Date) {
