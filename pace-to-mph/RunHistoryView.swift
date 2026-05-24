@@ -63,7 +63,7 @@ struct RunHistoryView: View {
                 Task { await service.requestAuthorization() }
             } label: {
                 Text("Allow access to Health")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 4)
             }
@@ -130,7 +130,7 @@ struct RunHistoryView: View {
                 }
             } label: {
                 Text("Open Settings")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(.subheadline.weight(.semibold))
                     .padding(.horizontal, 20)
                     .padding(.vertical, 6)
             }
@@ -146,7 +146,7 @@ private struct RunHistoryContent: View {
     let unit: SpeedUnit
 
     @State private var selectedRecordID: String?
-    @State private var selectedRange: RunChartRange = .sixMonths
+    @State private var selectedTrendScope: RunTrendScope = .threeMonths
     @State private var selectedChartPoint: RunChartPoint?
     @State private var expandedWeekIDs: Set<String> = []
     @State private var selectedMode: RunHistoryMode
@@ -162,7 +162,7 @@ private struct RunHistoryContent: View {
     }
 
     private var records: [RunPersonalRecord] {
-        RunHistoryStats.personalRecords(from: filteredRuns, unit: unit)
+        RunHistoryStats.personalRecords(from: runs, unit: unit)
     }
 
     private var selectedRecord: RunPersonalRecord? {
@@ -171,11 +171,19 @@ private struct RunHistoryContent: View {
 
     private var chartPoints: [RunChartPoint] {
         RunHistoryStats.chartPoints(
-            from: filteredRuns,
+            from: runs,
             target: selectedRecord?.target ?? .fiveKilometers,
             unit: unit,
-            range: selectedRange
+            scope: selectedTrendScope
         )
+    }
+
+    private var activitySummary: RunActivitySummary {
+        RunHistoryStats.activitySummary(from: runs, scope: selectedTrendScope, unit: unit)
+    }
+
+    private var volumeBars: [RunVolumeBar] {
+        RunHistoryStats.volumeBars(from: runs, scope: selectedTrendScope, unit: unit)
     }
 
     private var weeks: [RunHistoryWeek] {
@@ -231,14 +239,7 @@ private struct RunHistoryContent: View {
                             weekList
                         }
                     case .trends:
-                        if filteredRuns.isEmpty {
-                            filteredEmptyView
-                        } else if !records.isEmpty {
-                            personalRecordsCarousel
-                            performanceChart
-                        } else {
-                            filteredEmptyView
-                        }
+                        trendsBody
                     }
                 }
                 .padding(.horizontal, 24)
@@ -267,7 +268,7 @@ private struct RunHistoryContent: View {
             }
             expandedWeekIDs = Set(weeks.filter(\.isCurrentWeek).map(\.id))
         }
-        .onChange(of: selectedRange) { _, _ in
+        .onChange(of: selectedTrendScope) { _, _ in
             selectedChartPoint = nil
         }
         .onChange(of: selectedRecordID) { _, _ in
@@ -275,23 +276,80 @@ private struct RunHistoryContent: View {
         }
     }
 
+    @ViewBuilder
+    private var trendsBody: some View {
+        if records.isEmpty && activitySummary.runCount == 0 {
+            trendsEmptyView
+        } else {
+            Group {
+                TrendScopeMenu(scope: $selectedTrendScope)
+                ActivitySummaryCard(summary: activitySummary, scope: selectedTrendScope)
+                PersonalBestsGrid(
+                    records: records,
+                    selectedID: selectedRecord?.id,
+                    unit: unit,
+                    onSelect: { record in
+                        withAnimation(.snappy(duration: 0.2)) {
+                            selectedRecordID = record.id
+                        }
+                    }
+                )
+                if let record = selectedRecord {
+                    TrendChartCard(
+                        points: chartPoints,
+                        selectedPoint: $selectedChartPoint,
+                        record: record,
+                        scope: selectedTrendScope,
+                        unit: unit
+                    )
+                }
+                WeeklyVolumeCard(bars: volumeBars, scope: selectedTrendScope, unit: unit)
+            }
+            .tint(.green)
+        }
+    }
+
+    private var trendsEmptyView: some View {
+        ContentUnavailableView(
+            "Not enough data",
+            systemImage: "chart.line.uptrend.xyaxis",
+            description: Text("Run a few more times to start seeing your trends.")
+        )
+        .font(.caption)
+        .frame(maxWidth: .infinity)
+        .padding(20)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+    }
+
     private var header: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text(summary.runCountText)
-                    .font(.system(size: 17, weight: .black, design: .rounded))
+                Text(headerTitleText)
+                    .font(.title3)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
-                Text(unit.speedLabel.uppercased())
-                    .font(.system(size: 10, weight: .black, design: .monospaced))
-                    .foregroundStyle(.green)
-                    .tracking(1)
+                Text(unit.speedLabel)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
 
             modePicker
-            filterPicker
+            if selectedMode == .runs {
+                filterPicker
+            }
+        }
+        .tint(.green)
+    }
+
+    private var headerTitleText: String {
+        switch selectedMode {
+        case .runs:
+            return summary.runCountText
+        case .trends:
+            return "\(runs.count) \(runs.count == 1 ? "run" : "runs") tracked"
         }
     }
 
@@ -306,14 +364,13 @@ private struct RunHistoryContent: View {
     }
 
     private var filterPicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             Picker("Run history period", selection: $selectedPeriod) {
                 ForEach(RunHistoryPeriod.allCases) { period in
-                    Text(period.shortTitle).tag(period)
+                    Text(period.title).tag(period)
                 }
             }
             .pickerStyle(.segmented)
-            .tint(.green)
 
             secondaryFilterPicker
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -334,7 +391,6 @@ private struct RunHistoryContent: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.green)
         case .year:
             Picker("Year", selection: $selectedYearFilter) {
                 ForEach(yearOptions) { filter in
@@ -342,7 +398,6 @@ private struct RunHistoryContent: View {
                 }
             }
             .pickerStyle(.menu)
-            .tint(.green)
         }
     }
 
@@ -352,7 +407,6 @@ private struct RunHistoryContent: View {
             systemImage: "figure.run",
             description: Text("No runs match \(selectedFilter.descriptionText.lowercased()).")
         )
-        .font(.caption)
         .frame(maxWidth: .infinity)
         .padding(20)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
@@ -370,59 +424,6 @@ private struct RunHistoryContent: View {
         if years.contains(selectedYearFilter) == false {
             selectedYearFilter = years.first ?? currentYearFilter
         }
-    }
-
-    private var personalRecordsCarousel: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text("PERSONAL RECORDS")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .tracking(0.6)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("\(records.count)")
-                    .font(.system(size: 10, weight: .black, design: .monospaced))
-                    .foregroundStyle(.green)
-            }
-
-            ScrollView(.horizontal) {
-                HStack(spacing: 8) {
-                    ForEach(records) { record in
-                        PRCard(
-                            record: record,
-                            isSelected: record.id == selectedRecord?.id
-                        ) {
-                            withAnimation(.snappy(duration: 0.2)) {
-                                selectedRecordID = record.id
-                            }
-                        }
-                    }
-                }
-                .scrollTargetLayout()
-            }
-            .scrollIndicators(.hidden)
-            .scrollTargetBehavior(.viewAligned)
-
-            HStack(spacing: 4) {
-                ForEach(records) { record in
-                    Capsule()
-                        .fill(record.id == selectedRecord?.id ? Color.green : Color.secondary.opacity(0.22))
-                        .frame(width: record.id == selectedRecord?.id ? 16 : 4, height: 4)
-                }
-            }
-            .accessibilityHidden(true)
-        }
-    }
-
-    private var performanceChart: some View {
-        RunPerformanceChart(
-            points: chartPoints,
-            selectedPoint: $selectedChartPoint,
-            selectedRange: $selectedRange,
-            record: selectedRecord,
-            unit: unit
-        )
     }
 
     private var weekList: some View {
@@ -457,21 +458,18 @@ private struct RunSummaryStrip: View {
     let unit: SpeedUnit
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
             RunSummaryMetric(value: summary.distanceText, label: unit == .mph ? "Total mi" : "Total km")
 
-            Divider()
-                .padding(.vertical, 8)
+            Divider().frame(height: 44)
 
             RunSummaryMetric(value: summary.durationText, label: "Total time")
 
-            Divider()
-                .padding(.vertical, 8)
+            Divider().frame(height: 44)
 
             RunSummaryMetric(value: summary.averageSpeedText, label: "Avg \(unit.speedLabel)", isAccent: true)
         }
-        .frame(minHeight: 66)
-        .padding(.vertical, 10)
+        .padding(.vertical, 16)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
     }
 }
@@ -484,84 +482,274 @@ private struct RunSummaryMetric: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 15, weight: .black, design: .rounded))
-                .foregroundStyle(isAccent ? .green : .primary)
+                .font(.title2)
+                .fontWeight(.semibold)
+                .fontDesign(.rounded)
+                .foregroundStyle(isAccent ? Color.green : .primary)
+                .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
-                .monospacedDigit()
 
-            Text(label.uppercased())
-                .font(.system(size: 8, weight: .black, design: .monospaced))
+            Text(label)
+                .font(.caption)
                 .foregroundStyle(.secondary)
-                .tracking(0.8)
                 .lineLimit(1)
-                .minimumScaleFactor(0.65)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 8)
     }
 }
 
-private struct PRCard: View {
+private struct TrendScopeMenu: View {
+    @Binding var scope: RunTrendScope
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Label("Showing", systemImage: "calendar")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
+
+            Spacer()
+
+            Menu {
+                Picker("Scope", selection: $scope) {
+                    ForEach(RunTrendScope.allCases) { value in
+                        Text(value.menuLabel).tag(value)
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(scope.menuLabel)
+                        .font(.subheadline.weight(.semibold))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(.tint)
+            }
+            .accessibilityLabel("Trend scope")
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
+    }
+}
+
+private struct ActivitySummaryCard: View {
+    let summary: RunActivitySummary
+    let scope: RunTrendScope
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Activity")
+                    .font(.headline)
+                Spacer()
+                Text(scope.menuLabel)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            HStack(alignment: .top, spacing: 0) {
+                metric(
+                    value: "\(summary.runCount)",
+                    label: summary.runCount == 1 ? "Run" : "Runs",
+                    delta: runCountDeltaText
+                )
+
+                Divider().frame(height: 56)
+
+                metric(
+                    value: summary.distanceText,
+                    label: "Total \(summary.distanceUnitLabel)",
+                    delta: distanceDeltaText,
+                    isAccent: true
+                )
+
+                Divider().frame(height: 56)
+
+                metric(
+                    value: summary.durationText,
+                    label: "Active time",
+                    delta: nil
+                )
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+    }
+
+    private var runCountDeltaText: DeltaText? {
+        guard let delta = summary.runCountDelta else { return nil }
+        if delta == 0 { return DeltaText(text: "No change", isPositive: true, isNeutral: true) }
+        let sign = delta > 0 ? "+" : ""
+        return DeltaText(text: "\(sign)\(delta) vs prev", isPositive: delta >= 0, isNeutral: false)
+    }
+
+    private var distanceDeltaText: DeltaText? {
+        guard let pct = summary.distanceDeltaPercent else { return nil }
+        if abs(pct) < 0.005 { return DeltaText(text: "No change", isPositive: true, isNeutral: true) }
+        return DeltaText(text: "\(RunHistoryFormatters.percent(pct)) vs prev", isPositive: pct >= 0, isNeutral: false)
+    }
+
+    private struct DeltaText {
+        let text: String
+        let isPositive: Bool
+        let isNeutral: Bool
+    }
+
+    private func deltaColor(for delta: DeltaText) -> Color {
+        if delta.isNeutral { return .secondary }
+        return delta.isPositive ? .green : .red
+    }
+
+    private func metric(value: String, label: String, delta: DeltaText?, isAccent: Bool = false) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.title2)
+                .fontWeight(.semibold)
+                .fontDesign(.rounded)
+                .foregroundStyle(isAccent ? Color.green : .primary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            if let delta {
+                Text(delta.text)
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundStyle(deltaColor(for: delta))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            } else {
+                Text(" ")
+                    .font(.caption2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
+    }
+}
+
+private struct PersonalBestsGrid: View {
+    let records: [RunPersonalRecord]
+    let selectedID: String?
+    let unit: SpeedUnit
+    let onSelect: (RunPersonalRecord) -> Void
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8)
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Personal Bests")
+                    .font(.headline)
+                Spacer()
+                Text("All time")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(records) { record in
+                    PBCell(
+                        target: record.target,
+                        record: record,
+                        isSelected: record.id == selectedID,
+                        unit: unit
+                    ) {
+                        onSelect(record)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PBCell: View {
+    let target: RunRecordTarget
     let record: RunPersonalRecord
     let isSelected: Bool
+    let unit: SpeedUnit
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text(record.target.shortLabel)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundStyle(isSelected ? .green : .secondary)
-                    .tracking(0.5)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(target.displayName)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(isSelected ? Color.green : .primary)
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .imageScale(.small)
+                            .foregroundStyle(.green)
+                    }
+                }
 
-                VStack(alignment: .leading, spacing: 1) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(record.speedText)
-                        .font(.system(size: 25, weight: .black, design: .rounded))
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.primary)
                         .monospacedDigit()
-                        .foregroundStyle(.green)
-                        .minimumScaleFactor(0.75)
                         .lineLimit(1)
-                    Text("\(record.unit.speedLabel)  /  \(record.paceText) \(record.unit.paceLabel)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .minimumScaleFactor(0.7)
+                    Text(unit.speedLabel)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.65)
                 }
 
-                HStack(spacing: 3) {
-                    Image(systemName: record.deltaSpeed >= 0 ? "arrow.up" : "arrow.down")
-                        .font(.system(size: 9, weight: .black))
-                    Text("\(abs(record.deltaSpeed), specifier: "%.2f") vs last mo")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                }
-                .foregroundStyle(record.deltaSpeed >= 0 ? .green : .red)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                Text("\(record.paceText) \(unit.paceLabel)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text(record.achievedDate, format: .dateTime.month(.abbreviated).day().year())
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
             }
-            .frame(width: 132, height: 84, alignment: .leading)
-            .padding(12)
-            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 14))
             .overlay {
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(isSelected ? Color.green : Color(.separator), lineWidth: isSelected ? 1.5 : 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .strokeBorder(
+                        isSelected ? Color.green : Color.clear,
+                        lineWidth: 1.5
+                    )
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(record.target.shortLabel) personal record, \(record.speedText) \(record.unit.speedLabel)")
+        .accessibilityLabel("\(target.displayName) personal best, \(record.speedText) \(unit.speedLabel)\(isSelected ? ", selected" : "")")
     }
 }
 
-private struct RunPerformanceChart: View {
+private struct TrendChartCard: View {
     let points: [RunChartPoint]
     @Binding var selectedPoint: RunChartPoint?
-    @Binding var selectedRange: RunChartRange
-    let record: RunPersonalRecord?
+    let record: RunPersonalRecord
+    let scope: RunTrendScope
     let unit: SpeedUnit
 
-    private var displayPoint: RunChartPoint? {
-        selectedPoint
-    }
+    private var displayPoint: RunChartPoint? { selectedPoint }
 
     private func deltaString(from start: RunChartPoint?, to end: RunChartPoint?) -> String? {
         guard let start, let end, start.id != end.id else { return nil }
@@ -581,17 +769,31 @@ private struct RunPerformanceChart: View {
     }
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("\(record.target.displayName) Pace Trend")
+                        .font(.headline)
+                    Spacer()
+                    Text(scope.menuLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Your fastest \(unit.speedLabel) pace from runs of \(record.target.distanceCopy) or longer.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             headerContent
-                .frame(height: 44, alignment: .top)
+                .frame(height: 48, alignment: .top)
                 .animation(.easeOut(duration: 0.12), value: displayPoint?.id)
 
             chart
-                .frame(height: 142)
-
-            rangePicker
+                .frame(height: 150)
         }
         .padding(16)
+        .frame(maxWidth: .infinity)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
         .sensoryFeedback(trigger: selectedPoint?.id) { _, new in
             new != nil ? .selection : nil
@@ -609,40 +811,70 @@ private struct RunPerformanceChart: View {
 
     private var idleHeader: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text("\(record?.target.shortLabel ?? "RUN") trend - \(selectedRange.shortTitle)")
-                .font(.system(size: 16, weight: .black, design: .rounded))
-                .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                if let latest = points.last {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(String(format: "%.2f", latest.speed))
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .fontDesign(.rounded)
+                            .monospacedDigit()
+                        Text(unit.speedLabel)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    Text("Most recent · \(latest.paceText) \(unit.paceLabel)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                } else {
+                    Text("—")
+                        .font(.title2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
             Spacer()
             if let delta = deltaString(from: points.first, to: points.last) {
-                Text(delta)
-                    .font(.system(size: 12, weight: .black, design: .rounded))
-                    .foregroundStyle(delta.hasPrefix("+") ? .green : .red)
-                    .monospacedDigit()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(delta)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(delta.hasPrefix("+") ? Color.green : .red)
+                        .monospacedDigit()
+                    Text("over period")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
 
     private func scrubHeader(for point: RunChartPoint) -> some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text("\(String(format: "%.2f", point.speed)) \(unit.speedLabel)")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(String(format: "%.2f", point.speed))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .fontDesign(.rounded)
+                        .monospacedDigit()
+                    Text(unit.speedLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
                 Text("\(point.paceText) \(unit.paceLabel)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
             Spacer()
-            VStack(alignment: .trailing, spacing: 1) {
+            VStack(alignment: .trailing, spacing: 2) {
                 Text(point.date, format: .dateTime.month(.abbreviated).day().year())
-                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 if let delta = deltaString(from: points.first, to: point) {
                     Text(delta)
-                        .font(.system(size: 12, weight: .black, design: .rounded))
-                        .foregroundStyle(delta.hasPrefix("+") ? .green : .red)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(delta.hasPrefix("+") ? Color.green : .red)
                         .monospacedDigit()
                 }
             }
@@ -699,17 +931,14 @@ private struct RunPerformanceChart: View {
         .chartXAxis {
             AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine()
-                    .foregroundStyle(Color(.separator).opacity(0.35))
                 AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
             }
         }
-        .chartYAxis(.hidden)
-        .chartPlotStyle { plotArea in
-            plotArea
-                .background(Color.green.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
         }
         .chartOverlay { proxy in
             GeometryReader { geometry in
@@ -738,36 +967,13 @@ private struct RunPerformanceChart: View {
         .overlay {
             if points.isEmpty {
                 ContentUnavailableView(
-                    "Not enough data",
+                    "No \(record.target.displayName) runs",
                     systemImage: "chart.xyaxis.line",
-                    description: Text("Runs at this distance will build the PR chart.")
+                    description: Text("Try a longer scope or log \(record.target.distanceCopy).")
                 )
-                .font(.caption)
                 .background(Color(.systemBackground))
             }
         }
-    }
-
-    private var rangePicker: some View {
-        HStack {
-            Text("Range")
-                .font(.caption)
-                .fontWeight(.bold)
-                .tracking(0.6)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-
-            Picker("Chart range", selection: $selectedRange) {
-                ForEach(RunChartRange.allCases) { range in
-                    Text(range.shortTitle).tag(range)
-                }
-            }
-            .pickerStyle(.menu)
-            .tint(.green)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Chart range")
     }
 
     private func selectNearestPoint(to date: Date) {
@@ -778,6 +984,108 @@ private struct RunPerformanceChart: View {
         if selectedPoint?.id != nearest.id {
             selectedPoint = nearest
         }
+    }
+}
+
+private struct WeeklyVolumeCard: View {
+    let bars: [RunVolumeBar]
+    let scope: RunTrendScope
+    let unit: SpeedUnit
+
+    private var title: String {
+        scope.bucketing == .weekly ? "Weekly Volume" : "Monthly Volume"
+    }
+
+    private var subtitle: String {
+        let unitWord = unit == .mph ? "miles" : "kilometres"
+        let interval = scope.bucketing == .weekly ? "week" : "month"
+        return "Total \(unitWord) per \(interval)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(title)
+                        .font(.headline)
+                    Spacer()
+                    Text(scope.menuLabel)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Text(subtitle)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if bars.isEmpty {
+                Text("No runs in this period.")
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, minHeight: 100, alignment: .center)
+            } else {
+                chart
+                    .frame(height: 120)
+                statsRow
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
+    }
+
+    private var chart: some View {
+        Chart {
+            ForEach(bars) { bar in
+                BarMark(
+                    x: .value("Period", bar.periodStart, unit: scope.bucketing == .weekly ? .weekOfYear : .month),
+                    y: .value("Distance", bar.distance)
+                )
+                .foregroundStyle(Color.green.gradient)
+                .cornerRadius(4)
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month(.abbreviated))
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                AxisGridLine()
+                AxisValueLabel()
+            }
+        }
+    }
+
+    private var statsRow: some View {
+        let total = bars.reduce(0.0) { $0 + $1.distance }
+        let average = bars.isEmpty ? 0 : total / Double(bars.count)
+        let unitLabel = unit == .mph ? "mi" : "km"
+        let intervalLabel = scope.bucketing == .weekly ? "wk" : "mo"
+        return HStack(alignment: .top, spacing: 0) {
+            statBlock(value: String(format: "%.1f", total), label: "Total \(unitLabel)")
+            Divider().frame(height: 32)
+            statBlock(value: String(format: "%.1f", average), label: "Avg / \(intervalLabel)")
+            Divider().frame(height: 32)
+            statBlock(value: "\(bars.count)", label: scope.bucketing == .weekly ? "Weeks" : "Months")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func statBlock(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .fontDesign(.rounded)
+                .monospacedDigit()
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -844,30 +1152,30 @@ private struct WeekHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 if showsChevron {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .black))
+                        .font(.footnote.weight(.semibold))
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
                         .foregroundStyle(.secondary)
-                        .frame(width: 10)
+                        .frame(width: 12)
                 } else {
                     Circle()
                         .fill(week.isCurrentWeek ? Color.green : Color.secondary)
-                        .frame(width: 4, height: 4)
-                        .frame(width: 10)
+                        .frame(width: 6, height: 6)
+                        .frame(width: 12)
                 }
 
                 Text(week.title)
-                    .font(.system(size: 13, weight: .black, design: .rounded))
-                    .tracking(0.5)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Spacer(minLength: 8)
 
                 Text(week.runCountText)
-                    .font(.system(size: 10, weight: .black, design: .monospaced))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -876,13 +1184,14 @@ private struct WeekHeader: View {
                 Text(week.distanceText)
                 Text("Avg \(week.averageSpeedText)")
             }
-            .font(.system(size: 11, weight: .bold, design: .monospaced))
+            .font(.footnote)
             .foregroundStyle(.secondary)
+            .monospacedDigit()
             .lineLimit(1)
-            .padding(.leading, 18)
+            .padding(.leading, 22)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .overlay(alignment: .bottom) {
@@ -920,46 +1229,49 @@ private struct RunHistoryRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
-                HStack(spacing: 6) {
+                HStack(spacing: 8) {
                     Text(run.startDate, format: .dateTime.month(.abbreviated).day())
-                        .font(.system(size: 15, weight: .black, design: .rounded))
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
                         .foregroundStyle(.primary)
                     if let prBadge {
-                        Text(prBadge)
-                            .font(.system(size: 9, weight: .black, design: .monospaced))
+                        Label(prBadge, systemImage: "rosette")
+                            .labelStyle(.titleAndIcon)
+                            .font(.caption2.weight(.medium))
                             .foregroundStyle(.green)
-                            .padding(.horizontal, 6)
+                            .padding(.horizontal, 8)
                             .padding(.vertical, 3)
                             .background(
-                                Capsule()
-                                    .fill(Color.green.opacity(0.16))
+                                Capsule().fill(Color.green.opacity(0.15))
                             )
                     }
                 }
 
                 Spacer(minLength: 12)
 
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text(speedText)
-                        .font(.system(size: 17, weight: .black, design: .rounded))
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.primary)
                         .monospacedDigit()
-                        .foregroundStyle(.green)
                     Text(unit.speedLabel)
-                        .font(.system(size: 8, weight: .black, design: .monospaced))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 14) {
                 Text(distanceText)
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
 
                 Text("\(paceText) \(unit.paceLabel)")
-                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                     .lineLimit(1)
@@ -968,18 +1280,18 @@ private struct RunHistoryRow: View {
                 Spacer(minLength: 8)
 
                 Text(durationText)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.footnote)
                     .foregroundStyle(.tertiary)
                     .monospacedDigit()
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color(.separator))
                 .frame(height: 0.5)
-                .padding(.leading, 14)
+                .padding(.leading, 16)
         }
     }
 }
@@ -1026,7 +1338,8 @@ struct RunHistoryStats {
                 runID: best.runID,
                 speed: best.speed,
                 paceText: ConversionEngine.formatPace(pace) ?? "--",
-                deltaSpeed: best.speed - (baseline?.speed ?? best.speed)
+                deltaSpeed: best.speed - (baseline?.speed ?? best.speed),
+                achievedDate: best.date
             )
         }
     }
@@ -1035,10 +1348,10 @@ struct RunHistoryStats {
         from runs: [RunWorkout],
         target: RunRecordTarget,
         unit: SpeedUnit,
-        range: RunChartRange,
+        scope: RunTrendScope,
         referenceDate: Date = Date()
     ) -> [RunChartPoint] {
-        let lowerBound = range.lowerBound(from: referenceDate, calendar: calendar)
+        let lowerBound = scope.lowerBound(from: referenceDate, calendar: calendar)
         let efforts = efforts(for: target, runs: runs, unit: unit)
             .filter { effort in
                 guard let lowerBound else { return true }
@@ -1059,6 +1372,93 @@ struct RunHistoryStats {
         .sorted { $0.date < $1.date }
     }
 
+    static func activitySummary(
+        from runs: [RunWorkout],
+        scope: RunTrendScope,
+        unit: SpeedUnit,
+        referenceDate: Date = Date()
+    ) -> RunActivitySummary {
+        let lower = scope.lowerBound(from: referenceDate, calendar: calendar)
+        let previousLower = scope.previousLowerBound(from: referenceDate, calendar: calendar)
+
+        let currentRuns: [RunWorkout]
+        if let lower {
+            currentRuns = runs.filter { $0.startDate >= lower && $0.startDate <= referenceDate }
+        } else {
+            currentRuns = runs
+        }
+
+        let previousRuns: [RunWorkout]
+        if let lower, let previousLower {
+            previousRuns = runs.filter { $0.startDate >= previousLower && $0.startDate < lower }
+        } else {
+            previousRuns = []
+        }
+
+        let distance = totalDistance(currentRuns, unit: unit)
+        let duration = currentRuns.reduce(0.0) { $0 + $1.duration }
+        let previousDistance = totalDistance(previousRuns, unit: unit)
+        let previousDuration = previousRuns.reduce(0.0) { $0 + $1.duration }
+
+        return RunActivitySummary(
+            runCount: currentRuns.count,
+            distance: distance,
+            duration: duration,
+            previousRunCount: previousRuns.count,
+            previousDistance: previousDistance,
+            previousDuration: previousDuration,
+            unit: unit,
+            hasPreviousPeriod: scope != .allTime
+        )
+    }
+
+    static func volumeBars(
+        from runs: [RunWorkout],
+        scope: RunTrendScope,
+        unit: SpeedUnit,
+        referenceDate: Date = Date()
+    ) -> [RunVolumeBar] {
+        let lower = scope.lowerBound(from: referenceDate, calendar: calendar)
+        let scoped: [RunWorkout]
+        if let lower {
+            scoped = runs.filter { $0.startDate >= lower && $0.startDate <= referenceDate }
+        } else {
+            scoped = runs
+        }
+        guard scoped.isEmpty == false else { return [] }
+
+        switch scope.bucketing {
+        case .weekly:
+            let grouped = Dictionary(grouping: scoped) { weekStart(containing: $0.startDate) }
+            return grouped.map { start, weekRuns in
+                RunVolumeBar(
+                    id: "w-\(Int(start.timeIntervalSince1970))",
+                    periodStart: start,
+                    distance: totalDistance(weekRuns, unit: unit),
+                    label: RunHistoryFormatters.shortDay(start)
+                )
+            }
+            .sorted { $0.periodStart < $1.periodStart }
+        case .monthly:
+            let grouped = Dictionary(grouping: scoped) { monthStart(containing: $0.startDate) }
+            return grouped.map { start, monthRuns in
+                RunVolumeBar(
+                    id: "m-\(Int(start.timeIntervalSince1970))",
+                    periodStart: start,
+                    distance: totalDistance(monthRuns, unit: unit),
+                    label: RunHistoryFormatters.monthShort(start)
+                )
+            }
+            .sorted { $0.periodStart < $1.periodStart }
+        }
+    }
+
+    private static func totalDistance(_ runs: [RunWorkout], unit: SpeedUnit) -> Double {
+        runs.reduce(0.0) { partial, run in
+            partial + (unit == .mph ? run.distanceMiles : run.distanceKilometers)
+        }
+    }
+
     static func weeks(from runs: [RunWorkout], unit: SpeedUnit, referenceDate: Date = Date()) -> [RunHistoryWeek] {
         let currentWeekStart = weekStart(containing: referenceDate)
         let grouped = Dictionary(grouping: runs) { weekStart(containing: $0.startDate) }
@@ -1073,7 +1473,7 @@ struct RunHistoryStats {
             let avgSpeed = totalDuration > 0 ? totalDistance / (totalDuration / 3600.0) : 0
             let unitDistanceLabel = unit == .mph ? "mi" : "km"
             let rangeTitle = RunHistoryFormatters.weekRange(startDate, endDate)
-            let title = calendar.isDate(startDate, inSameDayAs: currentWeekStart) ? "THIS WEEK - \(rangeTitle)" : rangeTitle
+            let title = calendar.isDate(startDate, inSameDayAs: currentWeekStart) ? "This week · \(rangeTitle)" : rangeTitle
 
             return RunHistoryWeek(
                 id: String(Int(startDate.timeIntervalSince1970)),
@@ -1129,10 +1529,51 @@ struct RunPersonalRecord: Identifiable, Equatable {
     let speed: Double
     let paceText: String
     let deltaSpeed: Double
+    let achievedDate: Date
 
     var speedText: String {
         String(format: "%.2f", speed)
     }
+}
+
+struct RunActivitySummary: Equatable {
+    let runCount: Int
+    let distance: Double
+    let duration: TimeInterval
+    let previousRunCount: Int
+    let previousDistance: Double
+    let previousDuration: TimeInterval
+    let unit: SpeedUnit
+    let hasPreviousPeriod: Bool
+
+    var distanceText: String {
+        String(format: "%.1f", distance)
+    }
+
+    var durationText: String {
+        RunHistoryFormatters.duration(duration)
+    }
+
+    var distanceUnitLabel: String {
+        unit == .mph ? "mi" : "km"
+    }
+
+    var distanceDeltaPercent: Double? {
+        guard hasPreviousPeriod, previousDistance > 0 else { return nil }
+        return (distance - previousDistance) / previousDistance
+    }
+
+    var runCountDelta: Int? {
+        guard hasPreviousPeriod else { return nil }
+        return runCount - previousRunCount
+    }
+}
+
+struct RunVolumeBar: Identifiable, Equatable {
+    let id: String
+    let periodStart: Date
+    let distance: Double
+    let label: String
 }
 
 struct RunChartPoint: Identifiable, Equatable {
@@ -1331,6 +1772,40 @@ enum RunRecordTarget: String, CaseIterable, Identifiable {
         }
     }
 
+    var distanceCopy: String {
+        switch self {
+        case .oneMile:
+            return "a mile"
+        case .oneKilometer:
+            return "a kilometer"
+        case .fiveKilometers:
+            return "5K"
+        case .tenKilometers:
+            return "10K"
+        case .halfMarathon:
+            return "a half marathon"
+        case .marathon:
+            return "a marathon"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .oneMile:
+            return "1 Mile"
+        case .oneKilometer:
+            return "1 KM"
+        case .fiveKilometers:
+            return "5K"
+        case .tenKilometers:
+            return "10K"
+        case .halfMarathon:
+            return "Half Marathon"
+        case .marathon:
+            return "Marathon"
+        }
+    }
+
     func distance(for unit: SpeedUnit) -> Double {
         switch unit {
         case .mph:
@@ -1341,42 +1816,34 @@ enum RunRecordTarget: String, CaseIterable, Identifiable {
     }
 }
 
-enum RunChartRange: String, CaseIterable, Hashable, Identifiable {
-    case oneWeek
+enum RunTrendScope: String, CaseIterable, Hashable, Identifiable {
     case oneMonth
     case threeMonths
     case sixMonths
     case oneYear
-    case all
+    case allTime
 
     var id: String { rawValue }
 
-    var title: String {
+    var menuLabel: String {
         switch self {
-        case .oneWeek: return "1W"
-        case .oneMonth: return "1M"
-        case .threeMonths: return "3M"
-        case .sixMonths: return "6M"
-        case .oneYear: return "1Y"
-        case .all: return "All"
+        case .oneMonth: return "Last month"
+        case .threeMonths: return "Last 3 months"
+        case .sixMonths: return "Last 6 months"
+        case .oneYear: return "Last year"
+        case .allTime: return "All time"
         }
     }
 
-    var shortTitle: String {
+    var bucketing: RunVolumeBucketing {
         switch self {
-        case .oneWeek: return "1 wk"
-        case .oneMonth: return "1 mo"
-        case .threeMonths: return "3 mo"
-        case .sixMonths: return "6 mo"
-        case .oneYear: return "1 yr"
-        case .all: return "all"
+        case .oneMonth, .threeMonths, .sixMonths: return .weekly
+        case .oneYear, .allTime: return .monthly
         }
     }
 
     func lowerBound(from date: Date, calendar: Calendar) -> Date? {
         switch self {
-        case .oneWeek:
-            return calendar.date(byAdding: .day, value: -7, to: date)
         case .oneMonth:
             return calendar.date(byAdding: .month, value: -1, to: date)
         case .threeMonths:
@@ -1385,10 +1852,30 @@ enum RunChartRange: String, CaseIterable, Hashable, Identifiable {
             return calendar.date(byAdding: .month, value: -6, to: date)
         case .oneYear:
             return calendar.date(byAdding: .year, value: -1, to: date)
-        case .all:
+        case .allTime:
             return nil
         }
     }
+
+    func previousLowerBound(from date: Date, calendar: Calendar) -> Date? {
+        switch self {
+        case .oneMonth:
+            return calendar.date(byAdding: .month, value: -2, to: date)
+        case .threeMonths:
+            return calendar.date(byAdding: .month, value: -6, to: date)
+        case .sixMonths:
+            return calendar.date(byAdding: .month, value: -12, to: date)
+        case .oneYear:
+            return calendar.date(byAdding: .year, value: -2, to: date)
+        case .allTime:
+            return nil
+        }
+    }
+}
+
+enum RunVolumeBucketing {
+    case weekly
+    case monthly
 }
 
 private enum RunHistoryFormatters {
@@ -1408,19 +1895,37 @@ private enum RunHistoryFormatters {
     }
 
     static func weekRange(_ startDate: Date, _ endDate: Date) -> String {
-        let startMonth = monthFormatter.string(from: startDate).uppercased()
-        let endMonth = monthFormatter.string(from: endDate).uppercased()
+        let startMonth = monthFormatter.string(from: startDate)
+        let endMonth = monthFormatter.string(from: endDate)
         let startDay = dayFormatter.string(from: startDate)
         let endDay = dayFormatter.string(from: endDate)
 
         if startMonth == endMonth {
-            return "\(startMonth) \(startDay)-\(endDay)"
+            return "\(startMonth) \(startDay)–\(endDay)"
         }
-        return "\(startMonth) \(startDay) - \(endMonth) \(endDay)"
+        return "\(startMonth) \(startDay) – \(endMonth) \(endDay)"
     }
 
     static func monthYear(_ date: Date) -> String {
         monthYearFormatter.string(from: date)
+    }
+
+    static func monthShort(_ date: Date) -> String {
+        monthFormatter.string(from: date)
+    }
+
+    static func shortDay(_ date: Date) -> String {
+        shortDayFormatter.string(from: date)
+    }
+
+    static func longDate(_ date: Date) -> String {
+        longDateFormatter.string(from: date)
+    }
+
+    static func percent(_ value: Double) -> String {
+        let percent = value * 100
+        let sign = value >= 0 ? "+" : "-"
+        return "\(sign)\(String(format: "%.0f", abs(percent)))%"
     }
 
     private static let monthFormatter: DateFormatter = {
@@ -1441,6 +1946,20 @@ private enum RunHistoryFormatters {
         let formatter = DateFormatter()
         formatter.locale = .autoupdatingCurrent
         formatter.setLocalizedDateFormatFromTemplate("MMM yyyy")
+        return formatter
+    }()
+
+    private static let shortDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("MMMd")
+        return formatter
+    }()
+
+    private static let longDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = .autoupdatingCurrent
+        formatter.setLocalizedDateFormatFromTemplate("MMM d, yyyy")
         return formatter
     }()
 }
