@@ -75,6 +75,30 @@ struct RunWorkoutStoreTests {
         #expect(try store.didRequestAuthorization())
     }
 
+    @Test func personalRecordsHideOppositeUnitOnlyTargets() {
+        let run = makeRun(
+            id: UUID(uuidString: "55555555-5555-5555-5555-555555555555")!,
+            distanceMeters: 42_195,
+            duration: 14_400
+        )
+
+        let mphTargetIDs = Set(RunHistoryStats.personalRecords(from: [run], unit: .mph).map(\.target.id))
+        let kphTargetIDs = Set(RunHistoryStats.personalRecords(from: [run], unit: .kph).map(\.target.id))
+        let sharedTargetIDs = [
+            RunRecordTarget.fiveKilometers.id,
+            RunRecordTarget.tenKilometers.id,
+            RunRecordTarget.halfMarathon.id,
+            RunRecordTarget.marathon.id
+        ]
+
+        #expect(mphTargetIDs.contains(RunRecordTarget.oneMile.id))
+        #expect(!mphTargetIDs.contains(RunRecordTarget.oneKilometer.id))
+        #expect(kphTargetIDs.contains(RunRecordTarget.oneKilometer.id))
+        #expect(!kphTargetIDs.contains(RunRecordTarget.oneMile.id))
+        #expect(sharedTargetIDs.allSatisfy { mphTargetIDs.contains($0) })
+        #expect(sharedTargetIDs.allSatisfy { kphTargetIDs.contains($0) })
+    }
+
     private func makeStore() throws -> RunWorkoutStore {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
         let container = try ModelContainer(

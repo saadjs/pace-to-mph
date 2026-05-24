@@ -251,22 +251,22 @@ private struct RunHistoryContent: View {
         .sensoryFeedback(.selection, trigger: selectedChartPoint?.id)
         .onAppear {
             normalizePeriodSelections()
-            selectedRecordID = selectedRecord?.id
+            normalizeSelectedRecord()
             expandedWeekIDs = Set(weeks.filter(\.isCurrentWeek).map(\.id))
         }
         .onChange(of: runs) { _, _ in
             normalizePeriodSelections()
-            if let selectedRecordID, records.contains(where: { $0.id == selectedRecordID }) == false {
-                self.selectedRecordID = selectedRecord?.id
-            }
+            normalizeSelectedRecord()
             expandedWeekIDs.formUnion(weeks.filter(\.isCurrentWeek).map(\.id))
         }
         .onChange(of: selectedFilter) { _, _ in
             selectedChartPoint = nil
-            if let selectedRecordID, records.contains(where: { $0.id == selectedRecordID }) == false {
-                self.selectedRecordID = selectedRecord?.id
-            }
+            normalizeSelectedRecord()
             expandedWeekIDs = Set(weeks.filter(\.isCurrentWeek).map(\.id))
+        }
+        .onChange(of: unit) { _, _ in
+            selectedChartPoint = nil
+            normalizeSelectedRecord()
         }
         .onChange(of: selectedTrendScope) { _, _ in
             selectedChartPoint = nil
@@ -423,6 +423,14 @@ private struct RunHistoryContent: View {
         let years = yearOptions
         if years.contains(selectedYearFilter) == false {
             selectedYearFilter = years.first ?? currentYearFilter
+        }
+    }
+
+    private func normalizeSelectedRecord() {
+        guard let selectedRecordID,
+              records.contains(where: { $0.id == selectedRecordID }) else {
+            selectedRecordID = records.first?.id
+            return
         }
     }
 
@@ -1322,7 +1330,7 @@ struct RunHistoryStats {
     }
 
     static func personalRecords(from runs: [RunWorkout], unit: SpeedUnit, referenceDate: Date = Date()) -> [RunPersonalRecord] {
-        RunRecordTarget.allCases.compactMap { target in
+        RunRecordTarget.allCases.filter { $0.isVisible(in: unit) }.compactMap { target in
             let efforts = efforts(for: target, runs: runs, unit: unit)
             guard let best = efforts.max(by: { $0.speed < $1.speed }) else { return nil }
             let baselineCutoff = calendar.date(byAdding: .month, value: -1, to: referenceDate) ?? referenceDate
@@ -1803,6 +1811,15 @@ enum RunRecordTarget: String, CaseIterable, Identifiable {
             return "Half Marathon"
         case .marathon:
             return "Marathon"
+        }
+    }
+
+    func isVisible(in unit: SpeedUnit) -> Bool {
+        switch (self, unit) {
+        case (.oneMile, .kph), (.oneKilometer, .mph):
+            return false
+        default:
+            return true
         }
     }
 
