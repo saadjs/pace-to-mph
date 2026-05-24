@@ -2,10 +2,12 @@ import SwiftUI
 
 struct NegativeSplitView: View {
     @State private var timeInput: String = ""
-    @State private var selectedUnit: SpeedUnit = .mph
+    @State private var settings = UnitSettings.shared
     @State private var selectedDistance: RaceCalculator.Distance = .fiveK
     @State private var customDistanceInput: String = ""
     @State private var dropSecondsInput: String = "5"
+
+    private var selectedUnit: SpeedUnit { settings.unit }
     @FocusState private var isTimeFocused: Bool
     @FocusState private var isDistanceFocused: Bool
     @FocusState private var isDropFocused: Bool
@@ -70,23 +72,6 @@ struct NegativeSplitView: View {
                     .padding(24)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
 
-                    // Unit picker
-                    HStack(spacing: 16) {
-                        ForEach(SpeedUnit.allCases, id: \.self) { u in
-                            Button {
-                                withAnimation(.snappy(duration: 0.25)) {
-                                    selectUnit(u)
-                                }
-                            } label: {
-                                Text(u == .mph ? "Mile" : "KM")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .tracking(1.5)
-                            }
-                            .buttonStyle(.glass)
-                            .tint(selectedUnit == u ? .green : nil)
-                        }
-                    }
-
                     // Distance picker
                     VStack(spacing: 8) {
                         Text("Distance")
@@ -96,22 +81,13 @@ struct NegativeSplitView: View {
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(RaceCalculator.Distance.allCases) { d in
-                                    Button {
-                                        withAnimation(.snappy(duration: 0.25)) {
-                                            selectedDistance = d
-                                        }
-                                    } label: {
-                                        Text(d.rawValue)
-                                            .font(.system(size: 14, weight: .semibold))
-                                    }
-                                    .buttonStyle(.glass)
-                                    .tint(selectedDistance == d ? .green : nil)
-                                }
+                        Picker("Distance", selection: $selectedDistance) {
+                            ForEach(RaceCalculator.Distance.allCases) { d in
+                                Text(d.shortLabel).tag(d)
                             }
                         }
+                        .pickerStyle(.segmented)
+                        .tint(.green)
                     }
                     .padding(16)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 16))
@@ -282,19 +258,6 @@ struct NegativeSplitView: View {
         .sensoryFeedback(.impact(flexibility: .soft), trigger: splitsFeedbackTrigger)
     }
 
-    private func selectUnit(_ unit: SpeedUnit) {
-        let previousUnit = selectedUnit
-        guard previousUnit != unit else { return }
-
-        customDistanceInput = ConversionEngine.convertDistanceInput(customDistanceInput, from: previousUnit, to: unit)
-
-        if let dropSeconds = Double(dropSecondsInput), dropSeconds >= 0 {
-            let convertedDrop = ConversionEngine.convertDropSecondsBetweenUnits(dropSeconds, from: previousUnit, to: unit)
-            dropSecondsInput = String(Int(convertedDrop.rounded()))
-        }
-
-        selectedUnit = unit
-    }
 }
 
 #Preview {

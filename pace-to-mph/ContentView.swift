@@ -1,9 +1,16 @@
 import SwiftUI
 
 struct ContentView: View {
+    let healthKitService: HealthKitService
+
     @State private var viewModel = ConverterViewModel()
     @State private var favoritesStore = FavoritesStore()
+    @State private var unitSettings = UnitSettings.shared
     @FocusState private var isInputFocused: Bool
+
+    init(healthKitService: HealthKitService) {
+        self.healthKitService = healthKitService
+    }
 
     var body: some View {
         NavigationStack {
@@ -28,12 +35,9 @@ struct ContentView: View {
                 }
                 .onTapGesture {
                     isInputFocused = false
-                    viewModel.recordCurrentConversion()
                 }
-                .onChange(of: isInputFocused) { _, focused in
-                    if !focused {
-                        viewModel.recordCurrentConversion()
-                    }
+                .onChange(of: unitSettings.unit) { _, _ in
+                    viewModel.handleUnitChange()
                 }
             }
             .toolbar {
@@ -60,21 +64,29 @@ struct ContentView: View {
                         Divider()
 
                         NavigationLink {
+                            RunHistoryView(service: healthKitService)
+                        } label: {
+                            Label("Run History", systemImage: "figure.run")
+                        }
+
+                        NavigationLink {
                             FavoritesView(store: favoritesStore)
                         } label: {
                             Label("Favorites", systemImage: "star")
                         }
 
                         NavigationLink {
-                            HistoryView(history: viewModel.history, favoritesStore: favoritesStore)
-                        } label: {
-                            Label("History", systemImage: "clock")
-                        }
-
-                        NavigationLink {
                             ReferenceView()
                         } label: {
                             Label("Reference Table", systemImage: "table")
+                        }
+
+                        Divider()
+
+                        NavigationLink {
+                            SettingsView()
+                        } label: {
+                            Label("Settings", systemImage: "gear")
                         }
                     } label: {
                         Image(systemName: "line.3.horizontal")
@@ -128,7 +140,6 @@ struct ContentView: View {
                     .keyboardType(viewModel.direction == .paceToSpeed ? .numbersAndPunctuation : .decimalPad)
                     .textFieldStyle(.plain)
                     .focused($isInputFocused)
-                    .onSubmit { viewModel.recordCurrentConversion() }
                     .minimumScaleFactor(0.5)
                     .accessibilityLabel("Enter \(viewModel.direction == .paceToSpeed ? "pace" : "speed")")
                     .accessibilityHint(viewModel.helperText)
@@ -204,7 +215,6 @@ struct ContentView: View {
 
     private var controlPanel: some View {
         VStack(spacing: 14) {
-            // Direction labels
             HStack {
                 Text("Conversion")
                     .font(.caption)
@@ -212,72 +222,35 @@ struct ContentView: View {
                     .tracking(0.6)
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text("Units")
-                    .font(.caption)
-                    .fontWeight(.bold)
-                    .tracking(0.6)
-                    .foregroundStyle(.secondary)
             }
 
-            // Direction picker
             directionPicker
-
-            // Unit picker
-            unitPicker
         }
         .padding(16)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
     }
 
     private var directionPicker: some View {
-        HStack(spacing: 6) {
+        Picker("Conversion direction", selection: Binding(
+            get: { viewModel.direction },
+            set: { direction in
+                withAnimation(.snappy(duration: 0.25)) {
+                    isInputFocused = false
+                    viewModel.switchDirection(to: direction)
+                }
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
+        )) {
             ForEach(ConversionDirection.allCases, id: \.self) { dir in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        isInputFocused = false
-                        viewModel.switchDirection(to: dir)
-                    }
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                } label: {
-                    Text(dir.label)
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.glass)
-                .tint(viewModel.direction == dir ? .green : nil)
-                .accessibilityLabel(dir.label)
-                .accessibilityAddTraits(viewModel.direction == dir ? .isSelected : [])
+                Text(dir.label).tag(dir)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Conversion direction")
-    }
-
-    private var unitPicker: some View {
-        HStack(spacing: 16) {
-            ForEach(SpeedUnit.allCases, id: \.self) { u in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        viewModel.switchUnit(to: u)
-                    }
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                } label: {
-                    Text(u.label)
-                        .font(.system(size: 14, weight: .bold))
-                        .tracking(1.5)
-                }
-                .buttonStyle(.glass)
-                .tint(viewModel.unit == u ? .green : nil)
-                .accessibilityLabel(u.label)
-                .accessibilityAddTraits(viewModel.unit == u ? .isSelected : [])
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Speed unit")
+        .pickerStyle(.segmented)
+        .tint(.green)
     }
 
 }
 
 #Preview {
-    ContentView()
+    ContentView(healthKitService: HealthKitService())
 }

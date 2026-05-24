@@ -2,8 +2,6 @@ import SwiftUI
 
 @Observable
 final class ConverterViewModel {
-    let history = ConversionHistory()
-
     var direction: ConversionDirection {
         didSet {
             storedDirection = direction.rawValue
@@ -11,30 +9,18 @@ final class ConverterViewModel {
         }
     }
 
-    var unit: SpeedUnit {
-        didSet {
-            storedUnit = unit.rawValue
-            convertInputForUnitChange(from: oldUnit, to: unit)
-        }
-    }
-
     var inputText: String = ""
 
-    // Track old unit for input conversion on unit change
-    private var oldUnit: SpeedUnit = .mph
+    var unit: SpeedUnit {
+        UnitSettings.shared.unit
+    }
 
     @ObservationIgnored
     @AppStorage("conversionDirection") private var storedDirection: String = ConversionDirection.paceToSpeed.rawValue
 
-    @ObservationIgnored
-    @AppStorage("speedUnit") private var storedUnit: String = SpeedUnit.mph.rawValue
-
     init() {
         let dir = ConversionDirection(rawValue: UserDefaults.standard.string(forKey: "conversionDirection") ?? "") ?? .paceToSpeed
-        let u = SpeedUnit(rawValue: UserDefaults.standard.string(forKey: "speedUnit") ?? "") ?? .mph
         self.direction = dir
-        self.unit = u
-        self.oldUnit = u
     }
 
     // MARK: - Computed
@@ -85,50 +71,12 @@ final class ConverterViewModel {
 
     func switchDirection(to newDirection: ConversionDirection) {
         guard newDirection != direction else { return }
-        recordCurrentConversion()
         direction = newDirection
     }
 
-    func recordCurrentConversion() {
-        let currentResult = result
-        guard !currentResult.isEmpty, !inputText.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-        history.add(
-            input: inputText,
-            inputSuffix: inputSuffix,
-            result: currentResult,
-            resultSuffix: resultSuffix
-        )
-    }
-
-    func switchUnit(to newUnit: SpeedUnit) {
-        guard newUnit != unit else { return }
-        recordCurrentConversion()
-        oldUnit = unit
-        unit = newUnit
-    }
-
-    // MARK: - Private
-
-    private func convertInputForUnitChange(from oldUnit: SpeedUnit, to newUnit: SpeedUnit) {
-        let trimmed = inputText.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-
-        switch direction {
-        case .paceToSpeed:
-            guard let paceMinutes = ConversionEngine.parsePace(trimmed), paceMinutes > 0 else {
-                inputText = ""
-                return
-            }
-            let converted = ConversionEngine.convertPaceBetweenUnits(paceMinutes, from: oldUnit, to: newUnit)
-            inputText = ConversionEngine.formatPace(converted) ?? ""
-
-        case .speedToPace:
-            guard let speed = ConversionEngine.parseSpeed(trimmed), speed > 0 else {
-                inputText = ""
-                return
-            }
-            let converted = ConversionEngine.convertSpeedBetweenUnits(speed, from: oldUnit, to: newUnit)
-            inputText = ConversionEngine.formatSpeed(converted)
-        }
+    // Called when the global unit changes. The typed value's meaning
+    // (e.g. min/mi vs min/km) would silently flip, so we clear it.
+    func handleUnitChange() {
+        inputText = ""
     }
 }

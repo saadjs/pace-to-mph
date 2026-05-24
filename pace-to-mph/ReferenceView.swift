@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ReferenceView: View {
-    @State private var selectedUnit: SpeedUnit = .mph
+    @State private var settings = UnitSettings.shared
+    private var selectedUnit: SpeedUnit { settings.unit }
 
     private struct PaceEntry: Identifiable {
         let min: Int
@@ -37,15 +38,6 @@ struct ReferenceView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("Unit", selection: $selectedUnit) {
-                ForEach(SpeedUnit.allCases, id: \.self) { unit in
-                    Text(unit.speedLabel).tag(unit)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 20)
-            .padding(.top, 8)
-
             List {
                 ForEach(activePaces) { pace in
                     let speed = ConversionEngine.paceToSpeed(pace.paceMinutes)

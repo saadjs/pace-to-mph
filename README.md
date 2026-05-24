@@ -12,6 +12,7 @@ A native iOS app built with SwiftUI to convert between running pace and speed.
 - **Haptic feedback** — Subtle taps on interactions
 - **Dark mode** — Full light and dark mode support
 - **Persisted preferences** — Remembers your last-used direction and unit
+- **Run History** — Reads and locally caches Apple Health running workouts for pace and speed trends
 
 ## Requirements
 

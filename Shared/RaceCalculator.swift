@@ -1,7 +1,7 @@
 import Foundation
 
 enum RaceCalculator {
-    enum Distance: String, CaseIterable, Identifiable {
+    enum Distance: String, CaseIterable, Hashable, Identifiable {
         case fiveK = "5K"
         case tenK = "10K"
         case halfMarathon = "Half Marathon"

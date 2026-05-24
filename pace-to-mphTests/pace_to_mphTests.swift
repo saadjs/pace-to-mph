@@ -224,33 +224,62 @@ struct ReviewRegressionTests {
         """))
     }
 
-    @Test func historyRowKeepsFavoriteButtonFocusable() throws {
-        let historyView = try testFileContents("pace-to-mph", "HistoryView.swift")
-        let rowSection = try #require(
-            slice(
-                in: historyView,
-                from: "private func recordRow(_ record: ConversionRecord) -> some View {",
-                to: "#Preview {"
-            )
-        )
-
-        #expect(!rowSection.contains("""
-        .padding(.vertical, 4)
-        .accessibilityElement(children: .combine)
-        """))
-    }
-
     @Test func favoriteButtonsUseActionBasedLabels() throws {
         let contentView = try testFileContents("pace-to-mph", "ContentView.swift")
-        let historyView = try testFileContents("pace-to-mph", "HistoryView.swift")
 
         #expect(!contentView.contains("Toggle favorite"))
-        #expect(!historyView.contains("Toggle favorite"))
         #expect(contentView.contains("Add to favorites"))
         #expect(contentView.contains("Remove from favorites"))
-        #expect(historyView.contains("Add to favorites"))
-        #expect(historyView.contains("Remove from favorites"))
     }
+
+    // Regression: switching unit while a value is typed silently reinterpreted
+    // the value (e.g. 8:00/mi as 8:00/km). VM must clear input on unit change.
+    @Test func converterClearsInputOnUnitChange() {
+        let vm = ConverterViewModel()
+        vm.handleInput("8:30")
+        #expect(vm.inputText == "8:30")
+        vm.handleUnitChange()
+        #expect(vm.inputText == "")
+    }
+
+    // Regression: HealthKit hides read-denial; empty-state must offer a
+    // recovery path via Settings (read-only apps don't appear in Health app).
+    @Test func runHistoryEmptyStateOffersSettingsRecovery() throws {
+        let view = try testFileContents("pace-to-mph", "RunHistoryView.swift")
+        let emptyView = try #require(
+            slice(in: view, from: "private var emptyRunsView", to: "}\n}")
+        )
+        #expect(emptyView.contains("UIApplication.openSettingsURLString"))
+        #expect(emptyView.contains("Open Settings"))
+    }
+
+    // Regression: HealthKit hides read-denial and revocation. User-triggered
+    // refreshes must use a nil anchor (full sync) so we (a) self-heal from a
+    // poisoned anchor stored under denied access, and (b) reconcile deletions
+    // when access was revoked after a successful sync (otherwise stale cached
+    // runs display forever). Observer path stays incremental.
+    @Test func healthKitUserRefreshDoesFullSyncAndReconcilesDeletions() throws {
+        let service = try testFileContents("pace-to-mph", "Services/HealthKitService.swift")
+        let refresh = try #require(
+            slice(in: service, from: "func refresh(fullSync", to: "private func loadCachedRuns")
+        )
+        #expect(refresh.contains("fullSync ? nil : try storedAnchor()"))
+        #expect(refresh.contains("cachedIDs.filter { !fetchedIDs.contains($0) }"))
+
+        // Observer callback must stay incremental.
+        #expect(service.contains("refresh(fullSync: false)"))
+    }
+
+    // Regression: user grants/revokes Health access in Settings while the app
+    // is backgrounded; on return the view's .task does not refire, so we must
+    // refresh on scenePhase -> .active.
+    @Test func runHistoryRefreshesOnForeground() throws {
+        let view = try testFileContents("pace-to-mph", "RunHistoryView.swift")
+        #expect(view.contains("scenePhase"))
+        #expect(view.contains(".onChange(of: scenePhase)"))
+        #expect(view.contains("newPhase == .active"))
+    }
+
 }
 
 private func testFileContents(_ pathComponents: String...) throws -> String {

@@ -1,6 +1,6 @@
 import SwiftUI
 
-enum RaceCalculatorMode: String, CaseIterable, Identifiable {
+enum RaceCalculatorMode: String, CaseIterable, Hashable, Identifiable {
     case paceToTime
     case timeToPace
 
@@ -39,12 +39,14 @@ struct RaceTimeView: View {
     @State private var mode: RaceCalculatorMode = .paceToTime
     @State private var paceInput: String = ""
     @State private var timeInput: String = ""
-    @State private var selectedUnit: SpeedUnit = .mph
+    @State private var settings = UnitSettings.shared
     @State private var selectedDistance: RaceCalculator.Distance = .fiveK
     @State private var customDistanceInput: String = ""
     @FocusState private var isPaceFocused: Bool
     @FocusState private var isTimeFocused: Bool
     @FocusState private var isDistanceFocused: Bool
+
+    private var selectedUnit: SpeedUnit { settings.unit }
 
     // MARK: - Distance helpers
 
@@ -104,7 +106,7 @@ struct RaceTimeView: View {
     }
 
     private var hasTargetPaceResult: Bool {
-        targetPace(in: .mph) != nil && targetPace(in: .kph) != nil
+        targetPace(in: selectedUnit) != nil
     }
 
     // MARK: - Body
@@ -135,33 +137,22 @@ struct RaceTimeView: View {
     // MARK: - Mode Picker
 
     private var modePicker: some View {
-        HStack(spacing: 8) {
-            ForEach(RaceCalculatorMode.allCases) { m in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        mode = m
-                        isPaceFocused = false
-                        isTimeFocused = false
-                    }
-                } label: {
-                    Label {
-                        Text(m.label)
-                            .font(.system(size: 15, weight: .semibold))
-                    } icon: {
-                        Image(systemName: m.systemImage)
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .labelStyle(.titleAndIcon)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 42)
+        Picker("Race calculator mode", selection: Binding(
+            get: { mode },
+            set: { selectedMode in
+                withAnimation(.snappy(duration: 0.25)) {
+                    mode = selectedMode
+                    isPaceFocused = false
+                    isTimeFocused = false
                 }
-                .buttonStyle(.glass)
-                .tint(mode == m ? .green : nil)
-                .accessibilityAddTraits(mode == m ? .isSelected : [])
+            }
+        )) {
+            ForEach(RaceCalculatorMode.allCases) { m in
+                Text(m.label).tag(m)
             }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Race calculator mode")
+        .pickerStyle(.segmented)
+        .tint(.green)
     }
 
     // MARK: - Input Cards
@@ -178,13 +169,7 @@ struct RaceTimeView: View {
 
     private var paceInputCard: some View {
         VStack(spacing: 16) {
-            HStack {
-                sectionLabel(mode.inputTitle)
-
-                Spacer()
-
-                unitPicker(style: .pace)
-            }
+            sectionLabel(mode.inputTitle)
 
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 TextField("mm:ss", text: $paceInput)
@@ -239,64 +224,19 @@ struct RaceTimeView: View {
             .frame(maxWidth: 200)
     }
 
-    // MARK: - Unit Picker
-
-    private enum UnitPickerStyle {
-        case pace
-        case distance
-    }
-
-    private func unitPicker(style: UnitPickerStyle) -> some View {
-        HStack(spacing: 8) {
-            ForEach(SpeedUnit.allCases, id: \.self) { u in
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        selectUnit(u)
-                    }
-                } label: {
-                    Text(unitLabel(for: u, style: style))
-                        .font(.system(size: 12, weight: .bold))
-                        .tracking(0.8)
-                        .frame(minWidth: 42)
-                }
-                .buttonStyle(.glass)
-                .tint(selectedUnit == u ? .green : nil)
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(style == .pace ? "Pace unit" : "Distance unit")
-    }
-
     // MARK: - Distance Picker
 
     private var distanceSection: some View {
         VStack(spacing: 14) {
-            HStack {
-                sectionLabel("DISTANCE")
+            sectionLabel("DISTANCE")
 
-                Spacer()
-
-                if mode == .timeToPace && selectedDistance == .custom {
-                    unitPicker(style: .distance)
+            Picker("Distance", selection: $selectedDistance) {
+                ForEach(RaceCalculator.Distance.allCases) { d in
+                    Text(d.shortLabel).tag(d)
                 }
             }
-
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(RaceCalculator.Distance.allCases) { d in
-                        Button {
-                            withAnimation(.snappy(duration: 0.25)) {
-                                selectedDistance = d
-                            }
-                        } label: {
-                            Text(d.rawValue)
-                                .font(.system(size: 14, weight: .semibold))
-                        }
-                        .buttonStyle(.glass)
-                        .tint(selectedDistance == d ? .green : nil)
-                    }
-                }
-            }
+            .pickerStyle(.segmented)
+            .tint(.green)
 
             if selectedDistance == .custom {
                 Divider()
@@ -406,12 +346,7 @@ struct RaceTimeView: View {
             sectionLabel(mode.resultTitle, alignment: .center)
 
             if hasTargetPaceResult {
-                HStack(spacing: 0) {
-                    paceColumn(unit: .mph)
-                    Divider()
-                        .frame(height: 72)
-                    paceColumn(unit: .kph)
-                }
+                paceColumn(unit: selectedUnit)
             } else {
                 Text("–")
                     .font(.largeTitle.bold().monospacedDigit())
@@ -421,7 +356,7 @@ struct RaceTimeView: View {
         .frame(maxWidth: .infinity)
         .padding(24)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: 24))
-        .sensoryFeedback(.impact(flexibility: .soft), trigger: paceText(unit: .mph) + paceText(unit: .kph))
+        .sensoryFeedback(.impact(flexibility: .soft), trigger: paceText(unit: selectedUnit))
     }
 
     private func paceColumn(unit: SpeedUnit) -> some View {
@@ -470,26 +405,8 @@ struct RaceTimeView: View {
             .frame(maxWidth: .infinity, alignment: alignment)
     }
 
-    private func unitLabel(for unit: SpeedUnit, style: UnitPickerStyle) -> String {
-        switch style {
-        case .pace:
-            return unit.paceLabel
-        case .distance:
-            return unit == .mph ? "mi" : "km"
-        }
-    }
-
     private func distanceLabel(for unit: SpeedUnit) -> String {
         unit == .mph ? "miles" : "km"
-    }
-
-    private func selectUnit(_ unit: SpeedUnit) {
-        let previousUnit = selectedUnit
-        guard previousUnit != unit else { return }
-
-        paceInput = ConversionEngine.convertPaceInput(paceInput, from: previousUnit, to: unit)
-        customDistanceInput = ConversionEngine.convertDistanceInput(customDistanceInput, from: previousUnit, to: unit)
-        selectedUnit = unit
     }
 }
 
