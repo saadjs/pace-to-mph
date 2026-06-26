@@ -9,6 +9,7 @@ final class StoredRunWorkout {
     var distanceMeters: Double
     var duration: TimeInterval
     var source: String
+    var avgHeartRate: Int?
     var syncedAt: Date
 
     init(run: RunWorkout, syncedAt: Date = Date()) {
@@ -18,6 +19,7 @@ final class StoredRunWorkout {
         distanceMeters = run.distanceMeters
         duration = run.duration
         source = run.source
+        avgHeartRate = run.avgHeartRate
         self.syncedAt = syncedAt
     }
 
@@ -29,7 +31,8 @@ final class StoredRunWorkout {
             endDate: endDate,
             distanceMeters: distanceMeters,
             duration: duration,
-            source: source
+            source: source,
+            avgHeartRate: avgHeartRate
         )
     }
 
@@ -40,6 +43,7 @@ final class StoredRunWorkout {
         distanceMeters = run.distanceMeters
         duration = run.duration
         source = run.source
+        avgHeartRate = run.avgHeartRate
         self.syncedAt = syncedAt
     }
 }
@@ -49,17 +53,20 @@ final class RunSyncState {
     @Attribute(.unique) var key: String
     var anchorData: Data?
     var didRequestAuthorization: Bool
+    var didRequestHeartRate: Bool = false
     var lastSyncedAt: Date?
 
     init(
         key: String,
         anchorData: Data? = nil,
         didRequestAuthorization: Bool = false,
+        didRequestHeartRate: Bool = false,
         lastSyncedAt: Date? = nil
     ) {
         self.key = key
         self.anchorData = anchorData
         self.didRequestAuthorization = didRequestAuthorization
+        self.didRequestHeartRate = didRequestHeartRate
         self.lastSyncedAt = lastSyncedAt
     }
 }

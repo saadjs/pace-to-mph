@@ -24,6 +24,7 @@ final class HealthKitService {
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = [HKObjectType.workoutType()]
         types.insert(HKQuantityType.quantityType(forIdentifier: .distanceWalkingRunning)!)
+        types.insert(HKQuantityType.quantityType(forIdentifier: .heartRate)!)
         return types
     }
 
@@ -44,6 +45,23 @@ final class HealthKitService {
         // is our durable signal that the app can sync without prompting again.
         if didRequestAuthorization || !runs.isEmpty {
             authorizationState = .authorized
+            await requestHeartRateIfNeeded()
+        }
+    }
+
+    // Heart rate was added to the read set after some users already authorized.
+    // bootstrap() never re-requests auth, so those users would never be asked for
+    // HR. Prompt them exactly once: HealthKit only surfaces the undetermined HR
+    // type. No refresh here — bootstrap is always followed by a full refresh once
+    // authorized, which backfills HR onto already-cached runs without a second scan.
+    private func requestHeartRateIfNeeded() async {
+        guard let runStore,
+              (try? runStore.didRequestHeartRate()) == false else { return }
+        do {
+            try await healthStore.requestAuthorization(toShare: [], read: readTypes)
+            try runStore.markHeartRateRequested()
+        } catch {
+            lastError = error.localizedDescription
         }
     }
 
@@ -55,6 +73,7 @@ final class HealthKitService {
         do {
             try await healthStore.requestAuthorization(toShare: [], read: readTypes)
             try runStore?.markAuthorizationRequested()
+            try runStore?.markHeartRateRequested()
             authorizationState = .authorized
             await refresh()
             startObserving()
@@ -182,14 +201,30 @@ final class HealthKitService {
             return nil
         }
 
+        // Only workouts built with HKWorkoutBuilder (Apple Watch runs) carry
+        // attached HR statistics; others return nil and simply show no HR.
+        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+        let avgHeartRate = normalizedHeartRate(
+            bpm: workout.statistics(for: HKQuantityType(.heartRate))?
+                .averageQuantity()?.doubleValue(for: bpmUnit)
+        )
+
         return RunWorkout(
             id: workout.uuid,
             startDate: workout.startDate,
             endDate: workout.endDate,
             distanceMeters: meters,
             duration: workout.duration,
-            source: workout.sourceRevision.source.name
+            source: workout.sourceRevision.source.name,
+            avgHeartRate: avgHeartRate
         )
+    }
+
+    /// Rounds a raw average-bpm reading to a whole heart rate, rejecting the
+    /// missing/garbage cases (no sample, zero, negative, NaN, infinite).
+    nonisolated static func normalizedHeartRate(bpm: Double?) -> Int? {
+        guard let bpm, bpm.isFinite, bpm > 0 else { return nil }
+        return Int(bpm.rounded())
     }
 
     // MARK: - Auto-import (background delivery)

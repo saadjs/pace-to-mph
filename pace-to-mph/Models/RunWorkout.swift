@@ -7,6 +7,9 @@ nonisolated struct RunWorkout: Identifiable, Hashable {
     let distanceMeters: Double
     let duration: TimeInterval
     let source: String
+    /// Average heart rate in bpm, when the workout has it recorded. Apple Watch
+    /// runs carry this; phone- or some third-party-logged runs may not.
+    let avgHeartRate: Int?
 
     var distanceMiles: Double { distanceMeters / 1609.34 }
     var distanceKilometers: Double { distanceMeters / 1000.0 }

@@ -30,6 +30,24 @@ struct HealthKitServiceTests {
         #expect(abs(run.duration - 1_500) < 0.001)
         #expect(run.startDate == workout.startDate)
         #expect(run.endDate == workout.endDate)
+        // Workouts without attached HR statistics degrade to no heart rate.
+        // The full extraction path needs HKWorkoutBuilder (not constructible in a
+        // unit test); the bpm normalization it feeds is covered separately below.
+        #expect(run.avgHeartRate == nil)
+    }
+
+    @Test func normalizedHeartRateRoundsValidReadings() {
+        #expect(HealthKitService.normalizedHeartRate(bpm: 152.4) == 152)
+        #expect(HealthKitService.normalizedHeartRate(bpm: 152.6) == 153)
+        #expect(HealthKitService.normalizedHeartRate(bpm: 150) == 150)
+    }
+
+    @Test func normalizedHeartRateRejectsMissingOrGarbageReadings() {
+        #expect(HealthKitService.normalizedHeartRate(bpm: nil) == nil)
+        #expect(HealthKitService.normalizedHeartRate(bpm: 0) == nil)
+        #expect(HealthKitService.normalizedHeartRate(bpm: -5) == nil)
+        #expect(HealthKitService.normalizedHeartRate(bpm: .nan) == nil)
+        #expect(HealthKitService.normalizedHeartRate(bpm: .infinity) == nil)
     }
 
     private func makeWorkout(distanceMeters: Double?, duration: TimeInterval) -> HKWorkout {

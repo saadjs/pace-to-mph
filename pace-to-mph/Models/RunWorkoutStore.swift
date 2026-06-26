@@ -60,6 +60,16 @@ final class RunWorkoutStore {
         try modelContext.save()
     }
 
+    func didRequestHeartRate(for key: String = RunWorkoutStore.runningWorkoutsStateKey) throws -> Bool {
+        try syncState(for: key).didRequestHeartRate
+    }
+
+    func markHeartRateRequested(for key: String = RunWorkoutStore.runningWorkoutsStateKey) throws {
+        let state = try syncState(for: key)
+        state.didRequestHeartRate = true
+        try modelContext.save()
+    }
+
     private func storedRun(with id: UUID) throws -> StoredRunWorkout? {
         let idString = id.uuidString
         var descriptor = FetchDescriptor<StoredRunWorkout>(
