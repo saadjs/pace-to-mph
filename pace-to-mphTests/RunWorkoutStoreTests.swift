@@ -30,6 +30,31 @@ struct RunWorkoutStoreTests {
         #expect(abs(persisted.averageSpeedMph - run.averageSpeedMph) < 0.0001)
     }
 
+    @Test func persistenceRoundTripPreservesAverageHeartRate() throws {
+        let store = try makeStore()
+        let withHR = makeRun(
+            id: UUID(uuidString: "88888888-8888-8888-8888-888888888888")!,
+            distanceMeters: 5_000,
+            duration: 1_500,
+            avgHeartRate: 152
+        )
+        let withoutHR = makeRun(
+            id: UUID(uuidString: "99999999-9999-9999-9999-999999999999")!,
+            startDate: Date(timeIntervalSince1970: 1_779_600_000),
+            distanceMeters: 4_000,
+            duration: 1_200,
+            avgHeartRate: nil
+        )
+
+        try store.applyChanges(upserting: [withHR, withoutHR], deleting: [], anchorData: nil)
+
+        let runs = try store.fetchRuns()
+        let persistedWithHR = try #require(runs.first { $0.id == withHR.id })
+        let persistedWithoutHR = try #require(runs.first { $0.id == withoutHR.id })
+        #expect(persistedWithHR.avgHeartRate == 152)
+        #expect(persistedWithoutHR.avgHeartRate == nil)
+    }
+
     @Test func duplicateHealthKitUUIDUpsertsInsteadOfDoubleCounting() throws {
         let store = try makeStore()
         let id = UUID(uuidString: "22222222-2222-2222-2222-222222222222")!
@@ -134,7 +159,8 @@ struct RunWorkoutStoreTests {
         id: UUID,
         startDate: Date = Date(timeIntervalSince1970: 1_779_552_000),
         distanceMeters: Double,
-        duration: TimeInterval
+        duration: TimeInterval,
+        avgHeartRate: Int? = nil
     ) -> RunWorkout {
         RunWorkout(
             id: id,
@@ -142,7 +168,8 @@ struct RunWorkoutStoreTests {
             endDate: startDate.addingTimeInterval(duration),
             distanceMeters: distanceMeters,
             duration: duration,
-            source: "RunPace Tests"
+            source: "RunPace Tests",
+            avgHeartRate: avgHeartRate
         )
     }
 }

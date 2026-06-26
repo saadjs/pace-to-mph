@@ -1314,6 +1314,22 @@ private struct RunHistoryRow: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
 
+                if let heartRate = run.avgHeartRate {
+                    HStack(spacing: 3) {
+                        Image(systemName: "bolt.heart")
+                            .imageScale(.small)
+                            .foregroundStyle(.pink)
+                        Text("\(heartRate)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Average heart rate \(heartRate) beats per minute")
+                }
+
                 Spacer(minLength: 8)
 
                 Text(durationText)
@@ -2107,7 +2123,7 @@ private enum RunHistoryPreviewData {
         let calendar = RunHistoryStats.calendar
         let now = Date()
 
-        func run(daysAgo: Int, miles: Double, minutes: Double) -> RunWorkout {
+        func run(daysAgo: Int, miles: Double, minutes: Double, avgHeartRate: Int? = nil) -> RunWorkout {
             let start = calendar.date(byAdding: .day, value: -daysAgo, to: now) ?? now
             return RunWorkout(
                 id: UUID(),
@@ -2115,23 +2131,24 @@ private enum RunHistoryPreviewData {
                 endDate: start.addingTimeInterval(minutes * 60),
                 distanceMeters: miles * 1609.34,
                 duration: minutes * 60,
-                source: "Preview"
+                source: "Preview",
+                avgHeartRate: avgHeartRate
             )
         }
 
         return [
-            run(daysAgo: 0, miles: 2.0, minutes: 18),
-            run(daysAgo: 1, miles: 3.1, minutes: 25),
-            run(daysAgo: 3, miles: 4.0, minutes: 36),
-            run(daysAgo: 4, miles: 5.0, minutes: 42),
-            run(daysAgo: 8, miles: 6.2, minutes: 54),
+            run(daysAgo: 0, miles: 2.0, minutes: 18, avgHeartRate: 148),
+            run(daysAgo: 1, miles: 3.1, minutes: 25, avgHeartRate: 156),
+            run(daysAgo: 3, miles: 4.0, minutes: 36, avgHeartRate: 151),
+            run(daysAgo: 4, miles: 5.0, minutes: 42, avgHeartRate: 162),
+            run(daysAgo: 8, miles: 6.2, minutes: 54, avgHeartRate: 159),
             run(daysAgo: 10, miles: 3.4, minutes: 30),
-            run(daysAgo: 16, miles: 5.1, minutes: 45),
-            run(daysAgo: 30, miles: 3.1, minutes: 26),
-            run(daysAgo: 65, miles: 7.5, minutes: 68),
-            run(daysAgo: 110, miles: 3.1, minutes: 27),
-            run(daysAgo: 390, miles: 4.2, minutes: 38),
-            run(daysAgo: 420, miles: 3.1, minutes: 29)
+            run(daysAgo: 16, miles: 5.1, minutes: 45, avgHeartRate: 154),
+            run(daysAgo: 30, miles: 3.1, minutes: 26, avgHeartRate: 150),
+            run(daysAgo: 65, miles: 7.5, minutes: 68, avgHeartRate: 165),
+            run(daysAgo: 110, miles: 3.1, minutes: 27, avgHeartRate: 149),
+            run(daysAgo: 390, miles: 4.2, minutes: 38, avgHeartRate: 158),
+            run(daysAgo: 420, miles: 3.1, minutes: 29, avgHeartRate: 153)
         ]
     }()
 }

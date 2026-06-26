@@ -30,6 +30,10 @@ struct HealthKitServiceTests {
         #expect(abs(run.duration - 1_500) < 0.001)
         #expect(run.startDate == workout.startDate)
         #expect(run.endDate == workout.endDate)
+        // Workouts without attached HR statistics degrade to no heart rate.
+        // Exercising the real extraction path needs HKWorkoutBuilder, which
+        // can't be constructed in a unit test, so only the nil case is covered.
+        #expect(run.avgHeartRate == nil)
     }
 
     private func makeWorkout(distanceMeters: Double?, duration: TimeInterval) -> HKWorkout {

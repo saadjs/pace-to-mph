@@ -16,7 +16,8 @@ struct RunSpeedTrendTests {
             endDate: start,
             distanceMeters: twoMiles,
             duration: 7_200.0 / mph,
-            source: "Trend Tests"
+            source: "Trend Tests",
+            avgHeartRate: nil
         )
     }
 
