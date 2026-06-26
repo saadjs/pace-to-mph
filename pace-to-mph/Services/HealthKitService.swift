@@ -52,14 +52,14 @@ final class HealthKitService {
     // Heart rate was added to the read set after some users already authorized.
     // bootstrap() never re-requests auth, so those users would never be asked for
     // HR. Prompt them exactly once: HealthKit only surfaces the undetermined HR
-    // type, then a full refresh backfills HR onto already-cached runs.
+    // type. No refresh here — bootstrap is always followed by a full refresh once
+    // authorized, which backfills HR onto already-cached runs without a second scan.
     private func requestHeartRateIfNeeded() async {
         guard let runStore,
               (try? runStore.didRequestHeartRate()) == false else { return }
         do {
             try await healthStore.requestAuthorization(toShare: [], read: readTypes)
             try runStore.markHeartRateRequested()
-            await refresh()
         } catch {
             lastError = error.localizedDescription
         }
@@ -203,15 +203,11 @@ final class HealthKitService {
 
         // Only workouts built with HKWorkoutBuilder (Apple Watch runs) carry
         // attached HR statistics; others return nil and simply show no HR.
-        let avgHeartRate: Int? = {
-            let bpmUnit = HKUnit.count().unitDivided(by: .minute())
-            guard let bpm = workout.statistics(for: HKQuantityType(.heartRate))?
-                .averageQuantity()?.doubleValue(for: bpmUnit),
-                  bpm.isFinite, bpm > 0 else {
-                return nil
-            }
-            return Int(bpm.rounded())
-        }()
+        let bpmUnit = HKUnit.count().unitDivided(by: .minute())
+        let avgHeartRate = normalizedHeartRate(
+            bpm: workout.statistics(for: HKQuantityType(.heartRate))?
+                .averageQuantity()?.doubleValue(for: bpmUnit)
+        )
 
         return RunWorkout(
             id: workout.uuid,
@@ -222,6 +218,13 @@ final class HealthKitService {
             source: workout.sourceRevision.source.name,
             avgHeartRate: avgHeartRate
         )
+    }
+
+    /// Rounds a raw average-bpm reading to a whole heart rate, rejecting the
+    /// missing/garbage cases (no sample, zero, negative, NaN, infinite).
+    nonisolated static func normalizedHeartRate(bpm: Double?) -> Int? {
+        guard let bpm, bpm.isFinite, bpm > 0 else { return nil }
+        return Int(bpm.rounded())
     }
 
     // MARK: - Auto-import (background delivery)

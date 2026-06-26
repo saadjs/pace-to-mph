@@ -1546,8 +1546,12 @@ struct RunHistoryStats {
             .filter { $0.isVisible(in: unit) }
             .compactMap { target in
                 let bucket = scoped.filter { target.containsDistance($0.distanceMeters) }
-                guard bucket.count >= 2 else { return nil }
-                return RunDistanceTrend(target: target, trend: speedTrend(forRuns: bucket, unit: unit))
+                // Count valid chart points, not raw runs: a zero-distance/zero-duration
+                // run is dropped by speedTrend, so gating on bucket.count could surface
+                // a "trend" with a single plotted point.
+                let trend = speedTrend(forRuns: bucket, unit: unit)
+                guard trend.runCount >= 2 else { return nil }
+                return RunDistanceTrend(target: target, trend: trend)
             }
     }
 
